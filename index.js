@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder, Collection, PermissionsBitField, ActivityType, ChannelType, AuditLogEvent, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, Collection, PermissionsBitField, ActivityType, ChannelType, AuditLogEvent, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -18,7 +18,7 @@ const client = new Client({
 // ========== CONSTANTES ==========
 const PREFIX = '!';
 const TOKEN = process.env.TOKEN;
-const EMBED_COLOR = '#f1c40f'; // ✅ Couleur jaune
+const EMBED_COLOR = '#f1c40f';
 
 // IDs des salons de logs
 const LOGS = {
@@ -33,12 +33,12 @@ const LOGS = {
   salons: '1523020466871075017',
   systeme: '1523020509166436475',
   bots: '1523020554246951093',
-  raids: '1523020721100554312' // ⚠️ À REMPLACER par l'ID de votre salon de logs raids
+  raids: '1523020721100554312'
 };
 
 // IDs des rôles (permis)
 const ROLES = {
-  muteUnmute: '1522759758338064384',
+  muteUnmute: ['1522759758338064384', '1522756598236319836'],
   ticket: '1522759354774716556',
   fullPerms: ['1522757429501362307', '1522757708946604083', '1522757813074530416']
 };
@@ -54,13 +54,14 @@ const HELP_ROLES = [
   '1522757813074530416'
 ];
 
-// IDs spécifiques pour les fonctionnalités Sysnet
+// IDs spécifiques
 const INVITE_CHANNEL_ID = '1522761566242607114';
 const STATUT_CHANNEL_ID = '1522762774676115687';
 const ROLE_STATUT_ID = '1522755616958054430';
-const TICKET_CATEGORY_ID = '1522768228848369804'; // ⚠️ À REMPLACER par l'ID de la catégorie où créer les tickets
+const TICKET_CATEGORY_ID = '1522768228848369804';
+const BOT_ID = '1523031330340868117'; // ID du bot
 
-// Cooldowns (en ms)
+// Cooldowns
 const COOLDOWNS = {
   bl: 15 * 60 * 1000,
   timeout: 10 * 60 * 1000,
@@ -72,8 +73,9 @@ const COOLDOWNS = {
 const antiLinkEnabled = new Map();
 const cooldowns = new Map();
 const everyoneCooldown = new Map();
-const ticketConfigs = new Map(); // guildId -> config
+const ticketConfigs = new Map();
 const giveaways = new Map();
+const ticketMessages = new Map();
 
 // Configuration par défaut des tickets
 const DEFAULT_TICKET_CONFIG = {
@@ -108,7 +110,9 @@ function hasPermission(member, command) {
     if (roles.includes(id)) return true;
   }
   if (command === 'mute' || command === 'unmute') {
-    if (roles.includes(ROLES.muteUnmute)) return true;
+    for (const id of ROLES.muteUnmute) {
+      if (roles.includes(id)) return true;
+    }
   }
   if (command === 'ticket') {
     if (roles.includes(ROLES.ticket)) return true;
@@ -158,12 +162,21 @@ function parseDuration(str) {
   }
 }
 
+function hasTicketAccess(member) {
+  if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
+  const roles = member.roles.cache.map(r => r.id);
+  for (const id of ROLES.fullPerms) {
+    if (roles.includes(id)) return true;
+  }
+  if (roles.includes(ROLES.ticket)) return true;
+  return false;
+}
+
 // ========== ANTI-BOT & DÉTECTION RAID ==========
 let joinCount = 0;
 let joinTimer = null;
 
 client.on('guildMemberAdd', async member => {
-  // Log join
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
     .setTitle('📥 Arrivée')
@@ -171,7 +184,6 @@ client.on('guildMemberAdd', async member => {
     .setTimestamp();
   await sendLog(member.guild, 'joinleave', null, embed);
 
-  // Détection raid (5 membres en 10s)
   joinCount++;
   if (!joinTimer) {
     joinTimer = setTimeout(async () => {
@@ -188,7 +200,6 @@ client.on('guildMemberAdd', async member => {
     }, 10000);
   }
 
-  // Anti-bot
   if (member.user.bot) {
     const audit = await member.guild.fetchAuditLogs({ type: AuditLogEvent.BotAdd, limit: 1 });
     const entry = audit.entries.first();
@@ -215,7 +226,6 @@ client.on('guildMemberAdd', async member => {
     }
   }
 
-  // Système d'invitations
   const invites = await member.guild.invites.fetch();
   if (!client.inviteCache) client.inviteCache = new Map();
   const cached = client.inviteCache.get(member.guild.id) || {};
@@ -293,10 +303,25 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
   }
 });
 
-// ========== ANTI-LINK & ANTI-EVERYONE ==========
+// ========== STOCKAGE DES MESSAGES DES TICKETS ==========
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   if (!message.guild) return;
+  
+  if (message.channel.parentId === TICKET_CATEGORY_ID) {
+    if (!ticketMessages.has(message.channel.id)) {
+      ticketMessages.set(message.channel.id, []);
+    }
+    const msgs = ticketMessages.get(message.channel.id);
+    msgs.push({
+      author: message.author.tag,
+      authorId: message.author.id,
+      content: message.content,
+      timestamp: message.createdTimestamp,
+      attachments: message.attachments.map(a => a.url)
+    });
+    if (msgs.length > 1000) msgs.shift();
+  }
 
   // Anti-link
   const enabled = antiLinkEnabled.get(message.guild.id) || false;
@@ -339,9 +364,49 @@ client.on('messageCreate', async message => {
       everyoneCooldown.set(message.author.id, now);
     }
   }
+
+  // ========== VÉRIFICATION STATUT VIA MENTION DU BOT ==========
+  if (message.channel.id === STATUT_CHANNEL_ID && message.mentions.has(client.user.id)) {
+    const member = message.member;
+    const presence = member.presence;
+    let hasLink = false;
+    if (presence) {
+      const activity = presence.activities.find(a => a.type === ActivityType.Custom);
+      if (activity && activity.state) {
+        const statut = activity.state;
+        const patterns = [
+          /https:\/\/discord\.gg\/teadMR4zgG/,
+          /discord\.gg\/teadMR4zgG/,
+          /\.gg\/teadMR4zgG/,
+          /\/teadMR4zgG/
+        ];
+        hasLink = patterns.some(regex => regex.test(statut));
+      }
+    }
+    const role = message.guild.roles.cache.get(ROLE_STATUT_ID);
+    if (role) {
+      if (hasLink && !member.roles.cache.has(role.id)) {
+        await member.roles.add(role);
+        await message.channel.send(`✅ ${member.user}, vous avez reçu le rôle **${role.name}** !`);
+        // Log
+        const logEmbed = new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle('✅ Rôle attribué via ping')
+          .setDescription(`${member.user.tag} a reçu le rôle ${role.name} en pinguant le bot.`)
+          .setTimestamp();
+        await sendLog(message.guild, 'autorank', null, logEmbed);
+      } else if (hasLink && member.roles.cache.has(role.id)) {
+        await message.channel.send(`✅ ${member.user}, vous avez déjà le rôle **${role.name}**.`);
+      } else {
+        await message.channel.send(`${member.user}, vous devez mettre le lien **discord.gg/teadMR4zgG** (ou .gg/teadMR4zgG, /teadMR4zgG) dans votre statut personnalisé, puis pingez-moi à nouveau.`);
+      }
+    }
+    // Supprimer le message pour éviter le spam
+    try { await message.delete(); } catch(e) {}
+  }
 });
 
-// ========== RÔLE VIA STATUT ==========
+// ========== RÔLE VIA STATUT (surveillance automatique) ==========
 client.on('presenceUpdate', async (oldPresence, newPresence) => {
   if (!newPresence.guild) return;
   const member = newPresence.member;
@@ -400,7 +465,6 @@ client.on('messageCreate', async message => {
   const command = args.shift().toLowerCase();
   const member = message.member;
 
-  // Log commandes (sauf help)
   if (command !== 'help') {
     const embed = new EmbedBuilder()
       .setColor(EMBED_COLOR)
@@ -439,8 +503,7 @@ client.on('messageCreate', async message => {
 
 **🎫 TICKETS :**
 \`!ticket config set <champ> <valeur>\` - Configurer les tickets (admin)
-Champs : titre, description, image, couleur, footer, options (3 séparées par ,)
-\`!ticket send\` - Envoyer le message de tickets dans le salon (admin)
+\`!ticket send\` - Envoyer le message de tickets (admin)
 
 **🎁 GIVEAWAYS :**
 \`!giveaway #salon <durée> <nb_gagnants> <titre> | <description>\` - Lancer un giveaway (admin)
@@ -449,12 +512,10 @@ Champs : titre, description, image, couleur, footer, options (3 séparées par ,
 \`!message #salon "texte avec *n pour saut de ligne"\` - Envoyer un message
 \`!embed #salon "titre" "description" "couleur" "image" "footer"\` - Envoyer un embed
 
-**🔄 SYSTÈMES ACTIFS EN PERMANENCE :**
-• Anti-bot (refuse les bots ajoutés par non-admin)
-• Anti-channel (supprime les salons créés/modifiés par non-admin)
-• Anti-everyone (cooldown 2min par utilisateur)
-• Système d'invitations avec log
-• Attribution de rôle via statut (vérification automatique)
+**🔄 SYSTÈMES ACTIFS :**
+• Anti-bot, Anti-channel, Anti-everyone
+• Système d'invitations
+• Rôle via statut (automatique + ping du bot)
       `)
       .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
     return message.channel.send({ embeds: [embed] });
@@ -737,7 +798,6 @@ Champs : titre, description, image, couleur, footer, options (3 séparées par ,
 
     const config = ticketConfigs.get(message.guild.id) || { ...DEFAULT_TICKET_CONFIG };
 
-    // Créer le menu déroulant
     const row = new ActionRowBuilder()
       .addComponents(
         new StringSelectMenuBuilder()
@@ -775,7 +835,6 @@ Champs : titre, description, image, couleur, footer, options (3 séparées par ,
   // ========== GIVEAWAY ==========
   if (command === 'giveaway') {
     if (args[0] === 'force') {
-      // Commande cachée, on ne l'affiche pas dans l'aide
       const msgId = args[1];
       const user = message.mentions.users.first();
       if (!msgId || !user) return message.channel.send('❌ Usage: !giveaway force <ID_message> <@user>').then(m => setTimeout(() => m.delete(), 10000));
@@ -907,13 +966,11 @@ Champs : titre, description, image, couleur, footer, options (3 séparées par ,
 
 // ========== INTERACTION POUR LES TICKETS ==========
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isStringSelectMenu()) return;
-  if (interaction.customId === 'ticket_menu') {
+  if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
     const option = interaction.values[0];
     const guild = interaction.guild;
     const member = interaction.member;
 
-    // Vérifier si le membre a déjà un ticket ouvert
     const category = guild.channels.cache.get(TICKET_CATEGORY_ID);
     if (!category) {
       return interaction.reply({ content: '❌ Catégorie de tickets introuvable. Contactez un administrateur.', ephemeral: true });
@@ -921,7 +978,7 @@ client.on('interactionCreate', async interaction => {
 
     const existingTicket = guild.channels.cache.find(
       ch => ch.type === ChannelType.GuildText &&
-             ch.name === `ticket-${member.user.username}` &&
+             ch.name === `ticket-${member.user.username.toLowerCase()}` &&
              ch.parentId === TICKET_CATEGORY_ID
     );
     if (existingTicket) {
@@ -929,9 +986,8 @@ client.on('interactionCreate', async interaction => {
     }
 
     try {
-      // Créer le salon
       const ticketChannel = await guild.channels.create({
-        name: `ticket-${member.user.username}`,
+        name: `ticket-${member.user.username.toLowerCase()}`,
         type: ChannelType.GuildText,
         parent: TICKET_CATEGORY_ID,
         permissionOverwrites: [
@@ -943,15 +999,29 @@ client.on('interactionCreate', async interaction => {
             id: member.id,
             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
           },
-          // Permissions pour les rôles staff (à adapter selon vos rôles)
           ...ROLES.fullPerms.map(roleId => ({
             id: roleId,
             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
-          }))
+          })),
+          {
+            id: ROLES.ticket,
+            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
+          }
         ]
       });
 
-      // Envoyer un message dans le ticket
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`ticket_close_${ticketChannel.id}`)
+            .setLabel('🔒 Fermer')
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId(`ticket_transcript_${ticketChannel.id}`)
+            .setLabel('📄 Transcript')
+            .setStyle(ButtonStyle.Secondary)
+        );
+
       const embed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
         .setTitle(`🎫 Ticket - ${option}`)
@@ -959,11 +1029,13 @@ client.on('interactionCreate', async interaction => {
         .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
 
       await ticketChannel.send({
-        content: `<@${member.id}> ${ROLES.fullPerms.map(id => `<@&${id}>`).join(' ')}`,
-        embeds: [embed]
+        content: `<@${member.id}> ${ROLES.fullPerms.map(id => `<@&${id}>`).join(' ')} <@&${ROLES.ticket}>`,
+        embeds: [embed],
+        components: [row]
       });
 
-      // Log
+      ticketMessages.set(ticketChannel.id, []);
+
       const logEmbed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
         .setTitle('🎫 Ticket ouvert')
@@ -979,7 +1051,259 @@ client.on('interactionCreate', async interaction => {
       await interaction.reply({ content: '❌ Erreur lors de la création du ticket.', ephemeral: true });
     }
   }
+
+  // ========== BOUTONS TICKETS ==========
+  if (interaction.isButton()) {
+    const customId = interaction.customId;
+
+    if (customId.startsWith('ticket_close_')) {
+      const channelId = customId.replace('ticket_close_', '');
+      const channel = interaction.channel;
+      
+      if (channel.id !== channelId) {
+        return interaction.reply({ content: '❌ Utilisez ce bouton dans le bon salon.', ephemeral: true });
+      }
+
+      if (!hasTicketAccess(interaction.member)) {
+        return interaction.reply({ content: '❌ Vous n\'avez pas la permission de fermer ce ticket.', ephemeral: true });
+      }
+
+      await interaction.deferReply();
+
+      const transcript = await generateTranscript(channel);
+      
+      const logChannel = getLogChannel(interaction.guild, 'tickets');
+      if (logChannel) {
+        const transcriptEmbed = new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle('📄 Transcript du ticket')
+          .setDescription(`Ticket fermé par ${interaction.member.user.tag}\nSalon : ${channel.name}`)
+          .setTimestamp();
+        await logChannel.send({
+          embeds: [transcriptEmbed],
+          files: [{
+            attachment: Buffer.from(transcript, 'utf-8'),
+            name: `transcript-${channel.name}-${Date.now()}.html`
+          }]
+        });
+      }
+
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`ticket_delete_${channel.id}`)
+            .setLabel('🗑️ Supprimer')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+      await channel.send({
+        content: `🔒 Ticket fermé par ${interaction.member.user.tag}. Cliquez sur "Supprimer" pour supprimer le salon.`,
+        components: [row]
+      });
+
+      const logEmbed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('🔒 Ticket fermé')
+        .setDescription(`Ticket ${channel.name} fermé par ${interaction.member.user.tag}`)
+        .setTimestamp();
+      await sendLog(interaction.guild, 'tickets', null, logEmbed);
+
+      await interaction.editReply({ content: '✅ Ticket fermé. Le transcript a été envoyé dans les logs.', ephemeral: true });
+    }
+
+    if (customId.startsWith('ticket_delete_')) {
+      const channelId = customId.replace('ticket_delete_', '');
+      const channel = interaction.channel;
+
+      if (channel.id !== channelId) {
+        return interaction.reply({ content: '❌ Utilisez ce bouton dans le bon salon.', ephemeral: true });
+      }
+
+      if (!hasTicketAccess(interaction.member)) {
+        return interaction.reply({ content: '❌ Vous n\'avez pas la permission de supprimer ce ticket.', ephemeral: true });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+      
+      try {
+        await channel.delete(`Ticket supprimé par ${interaction.member.user.tag}`);
+        await interaction.editReply({ content: '✅ Ticket supprimé.' });
+      } catch (e) {
+        await interaction.editReply({ content: '❌ Erreur lors de la suppression.' });
+      }
+    }
+
+    if (customId.startsWith('ticket_transcript_')) {
+      const channelId = customId.replace('ticket_transcript_', '');
+      const channel = interaction.channel;
+
+      if (channel.id !== channelId) {
+        return interaction.reply({ content: '❌ Utilisez ce bouton dans le bon salon.', ephemeral: true });
+      }
+
+      if (!hasTicketAccess(interaction.member)) {
+        return interaction.reply({ content: '❌ Vous n\'avez pas la permission de générer un transcript.', ephemeral: true });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const transcript = await generateTranscript(channel);
+      const logChannel = getLogChannel(interaction.guild, 'tickets');
+      if (logChannel) {
+        const transcriptEmbed = new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle('📄 Transcript du ticket')
+          .setDescription(`Transcript demandé par ${interaction.member.user.tag}\nSalon : ${channel.name}`)
+          .setTimestamp();
+        await logChannel.send({
+          embeds: [transcriptEmbed],
+          files: [{
+            attachment: Buffer.from(transcript, 'utf-8'),
+            name: `transcript-${channel.name}-${Date.now()}.html`
+          }]
+        });
+      }
+
+      await interaction.editReply({ content: '✅ Transcript généré et envoyé dans les logs.' });
+    }
+  }
 });
+
+// ========== FONCTION DE GÉNÉRATION DE TRANSCRIPT ==========
+async function generateTranscript(channel) {
+  const messages = ticketMessages.get(channel.id) || [];
+  
+  try {
+    const fetched = await channel.messages.fetch({ limit: 100 });
+    for (const [, msg] of fetched) {
+      if (!msg.author.bot) {
+        const existing = messages.find(m => m.timestamp === msg.createdTimestamp && m.content === msg.content);
+        if (!existing) {
+          messages.push({
+            author: msg.author.tag,
+            authorId: msg.author.id,
+            content: msg.content,
+            timestamp: msg.createdTimestamp,
+            attachments: msg.attachments.map(a => a.url)
+          });
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  messages.sort((a, b) => a.timestamp - b.timestamp);
+
+  let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Transcript - ${channel.name}</title>
+  <style>
+    body {
+      background-color: #36393f;
+      color: #dcddde;
+      font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .message {
+      display: flex;
+      margin-bottom: 15px;
+      padding: 10px;
+      background-color: #2f3136;
+      border-radius: 8px;
+    }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #5865f2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    .content {
+      flex: 1;
+    }
+    .header {
+      display: flex;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+    .author {
+      font-weight: bold;
+      color: #ffffff;
+      margin-right: 8px;
+    }
+    .timestamp {
+      font-size: 0.75rem;
+      color: #72767d;
+    }
+    .text {
+      word-wrap: break-word;
+    }
+    .attachment {
+      color: #00aff4;
+      text-decoration: none;
+      display: block;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #40444b;
+      color: #72767d;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align:center;margin-bottom:30px;">📄 Transcript - ${channel.name}</h1>
+  `;
+
+  for (const msg of messages) {
+    const date = new Date(msg.timestamp);
+    const time = date.toLocaleString('fr-FR');
+    const initial = msg.author.charAt(0).toUpperCase();
+    const avatarColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+    
+    html += `
+  <div class="message">
+    <div class="avatar" style="background-color:${avatarColor};">${initial}</div>
+    <div class="content">
+      <div class="header">
+        <span class="author">${escapeHtml(msg.author)}</span>
+        <span class="timestamp">${time}</span>
+      </div>
+      <div class="text">${escapeHtml(msg.content)}</div>
+      ${msg.attachments && msg.attachments.length > 0 ? msg.attachments.map(a => `<a href="${a}" class="attachment">📎 ${a}</a>`).join('') : ''}
+    </div>
+  </div>
+    `;
+  }
+
+  html += `
+  <div class="footer">
+    🔱 Sysnet • ${new Date().toLocaleString('fr-FR')}
+  </div>
+</body>
+</html>
+  `;
+
+  return html;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
 
 // ========== INITIALISATION ==========
 client.once('ready', async () => {
