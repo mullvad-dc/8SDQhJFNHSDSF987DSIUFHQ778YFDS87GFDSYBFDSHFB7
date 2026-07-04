@@ -910,11 +910,12 @@ client.on('messageCreate', async message => {
     await message.delete().catch(() => {});
   }
 
-  // ========== EMBED (modifié : /n au lieu de *n) ==========
+  // ========== EMBED (modifié : /n + gestion du # dans la couleur) ==========
   if (command === 'embed') {
     const title = args[1] || ' ';
     const description = args[2] || ' ';
-    const color = args[3] || EMBED_COLOR;
+    let color = args[3] || EMBED_COLOR;
+    if (color.startsWith('#')) color = color.slice(1); // 🔧 Supprime le # si présent
     const image = args[4] || null;
     const footer = args.slice(5).join(' ') || null;
     const channel = message.mentions.channels.first();
