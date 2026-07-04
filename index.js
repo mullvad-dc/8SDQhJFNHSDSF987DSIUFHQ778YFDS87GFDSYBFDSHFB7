@@ -910,26 +910,35 @@ client.on('messageCreate', async message => {
     await message.delete().catch(() => {});
   }
 
-  // ========== EMBED (modifié : /n + gestion du # dans la couleur) ==========
-  if (command === 'embed') {
+// ========== EMBED (modifié : /n + gestion du # dans la couleur + ID salon) ==========
+if (command === 'embed') {
+    // Récupérer le salon : soit par mention, soit par ID
+    let channel = message.mentions.channels.first();
+    if (!channel) {
+        const channelId = args[0];
+        if (channelId && /^\d+$/.test(channelId)) {
+            channel = message.guild.channels.cache.get(channelId);
+        }
+    }
+    if (!channel) return message.channel.send('❌ Salon invalide.').then(m => setTimeout(() => m.delete(), 10000));
+
     const title = args[1] || ' ';
     const description = args[2] || ' ';
     let color = args[3] || EMBED_COLOR;
-    if (color.startsWith('#')) color = color.slice(1); // 🔧 Supprime le # si présent
+    if (color.startsWith('#')) color = color.slice(1); // supprime le # si présent
     const image = args[4] || null;
     const footer = args.slice(5).join(' ') || null;
-    const channel = message.mentions.channels.first();
-    if (!channel) return message.channel.send('❌ Salon invalide.').then(m => setTimeout(() => m.delete(), 10000));
+
     const embed = new EmbedBuilder()
-      .setColor(color)
-      .setTitle(title)
-      .setDescription(description.replace(/\/n/g, '\n'));
+        .setColor(color)
+        .setTitle(title)
+        .setDescription(description.replace(/\/n/g, '\n'));
     if (image) embed.setImage(image);
     if (footer) embed.setFooter({ text: footer });
+
     await channel.send({ embeds: [embed] });
     await message.delete().catch(() => {});
-  }
-});
+}
 
 client.on('interactionCreate', async interaction => {
   if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
