@@ -899,7 +899,7 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'moderation', null, logEmbed);
   }
 
-  // ========== MESSAGE (avec /n) ==========
+  // ========== MESSAGE ==========
   if (command === 'message') {
     const text = args.slice(1).join(' ').replace(/\/n/g, '\n');
     const channel = message.mentions.channels.first();
@@ -908,7 +908,7 @@ client.on('messageCreate', async message => {
     await message.delete().catch(() => {});
   }
 
-  // ========== EMBED (avec /n et gestion ID + #) ==========
+  // ========== EMBED ==========
   if (command === 'embed') {
     // Récupérer le salon : soit par mention, soit par ID
     let channel = message.mentions.channels.first();
@@ -923,7 +923,7 @@ client.on('messageCreate', async message => {
     const title = args[1] || ' ';
     const description = args[2] || ' ';
     let color = args[3] || EMBED_COLOR;
-    if (color.startsWith('#')) color = color.slice(1); // supprime le # si présent
+    if (color.startsWith('#')) color = color.slice(1);
     const image = args[4] || null;
     const footer = args.slice(5).join(' ') || null;
 
