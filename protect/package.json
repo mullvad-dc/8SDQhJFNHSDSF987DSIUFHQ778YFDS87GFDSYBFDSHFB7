@@ -1,1 +1,13 @@
-
+{
+  "name": "sainte-protect",
+  "version": "1.0.0",
+  "description": "Bot de modération et sécurité pour Sysnet",
+  "main": "protectdiscord.js",
+  "scripts": {
+    "start": "node protectdiscord.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
+  }
+}
