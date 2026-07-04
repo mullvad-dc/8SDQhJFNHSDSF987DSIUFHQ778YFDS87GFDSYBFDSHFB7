@@ -986,7 +986,6 @@ client.once('ready', async () => {
   console.log(`✅ Bot connecté en tant que ${client.user.tag}`);
   client.user.setActivity("j'protege tout le monde", { type: ActivityType.Playing });
 
-  // Initialisation du cache d'invites
   client.inviteCache = new Map();
   for (const guild of client.guilds.cache.values()) {
     try {
@@ -998,6 +997,19 @@ client.once('ready', async () => {
       client.inviteCache.set(guild.id, cache);
     } catch (e) { /* ignore */ }
   }
+});
+
+// ========== SERVEUR HTTP POUR RENDER ==========
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('🟢 Bot Discord en ligne !');
+});
+
+app.listen(port, () => {
+  console.log(`✅ Serveur HTTP sur le port ${port}`);
 });
 
 // ========== CONNEXION ==========
