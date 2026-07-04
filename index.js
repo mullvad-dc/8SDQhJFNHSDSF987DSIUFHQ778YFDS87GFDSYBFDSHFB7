@@ -510,94 +510,43 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== MESSAGE ==========
+  // ========== MESSAGE (envoie un bouton) ==========
   if (command === 'message') {
-    const modal = new ModalBuilder()
-      .setCustomId('messageModal')
-      .setTitle('✉️ Envoyer un message');
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('open_message_modal')
+          .setLabel('✉️ Ouvrir le formulaire')
+          .setStyle(ButtonStyle.Primary)
+      );
 
-    const salonInput = new TextInputBuilder()
-      .setCustomId('salon')
-      .setLabel('📌 ID du salon (optionnel)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Laissez vide pour envoyer ici')
-      .setRequired(false);
-
-    const textInput = new TextInputBuilder()
-      .setCustomId('texte')
-      .setLabel('📝 Contenu du message')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Écrivez votre message ici...')
-      .setRequired(true);
-
-    const row1 = new ActionRowBuilder().addComponents(salonInput);
-    const row2 = new ActionRowBuilder().addComponents(textInput);
-
-    modal.addComponents(row1, row2);
-
-    await interaction.showModal(modal);
+    await message.channel.send({
+      content: 'Cliquez sur le bouton ci-dessous pour ouvrir le formulaire d\'envoi de message.',
+      components: [row]
+    });
+    await message.delete().catch(() => {});
     return;
   }
 
-  // ========== EMBED ==========
+  // ========== EMBED (envoie un bouton) ==========
   if (command === 'embed') {
-    const modal = new ModalBuilder()
-      .setCustomId('embedModal')
-      .setTitle('🎨 Créer un embed');
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('open_embed_modal')
+          .setLabel('🎨 Ouvrir le formulaire')
+          .setStyle(ButtonStyle.Primary)
+      );
 
-    const salonInput = new TextInputBuilder()
-      .setCustomId('salon')
-      .setLabel('📌 ID du salon (optionnel)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Laissez vide pour envoyer ici')
-      .setRequired(false);
-
-    const titreInput = new TextInputBuilder()
-      .setCustomId('titre')
-      .setLabel('📌 Titre')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false);
-
-    const descInput = new TextInputBuilder()
-      .setCustomId('description')
-      .setLabel('📝 Description')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Utilisez /n pour les sauts de ligne')
-      .setRequired(false);
-
-    const couleurInput = new TextInputBuilder()
-      .setCustomId('couleur')
-      .setLabel('🎨 Couleur (hex, ex: f1c40f)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('f1c40f')
-      .setRequired(false);
-
-    const imageInput = new TextInputBuilder()
-      .setCustomId('image')
-      .setLabel('🖼️ URL de l\'image (optionnel)')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false);
-
-    const footerInput = new TextInputBuilder()
-      .setCustomId('footer')
-      .setLabel('📌 Footer (optionnel)')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false);
-
-    const row1 = new ActionRowBuilder().addComponents(salonInput);
-    const row2 = new ActionRowBuilder().addComponents(titreInput);
-    const row3 = new ActionRowBuilder().addComponents(descInput);
-    const row4 = new ActionRowBuilder().addComponents(couleurInput);
-    const row5 = new ActionRowBuilder().addComponents(imageInput);
-    const row6 = new ActionRowBuilder().addComponents(footerInput);
-
-    modal.addComponents(row1, row2, row3, row4, row5, row6);
-
-    await interaction.showModal(modal);
+    await message.channel.send({
+      content: 'Cliquez sur le bouton ci-dessous pour ouvrir le formulaire de création d\'embed.',
+      components: [row]
+    });
+    await message.delete().catch(() => {});
     return;
   }
 
-  // ========== BL ==========
+  // ========== AUTRES COMMANDES (inchangées) ==========
   if (command === 'bl') {
     if (!hasPermission(member, command)) {
       return message.channel.send('❌ Vous n\'avez pas la permission.')
@@ -1005,8 +954,96 @@ client.on('messageCreate', async message => {
   }
 });
 
-// ========== INTERACTIONS (MODALS + TICKETS) ==========
+// ========== INTERACTIONS ==========
 client.on('interactionCreate', async interaction => {
+  // ========== BOUTONS POUR MODALS ==========
+  if (interaction.isButton()) {
+    if (interaction.customId === 'open_message_modal') {
+      const modal = new ModalBuilder()
+        .setCustomId('messageModal')
+        .setTitle('✉️ Envoyer un message');
+
+      const salonInput = new TextInputBuilder()
+        .setCustomId('salon')
+        .setLabel('📌 ID du salon (optionnel)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Laissez vide pour envoyer ici')
+        .setRequired(false);
+
+      const textInput = new TextInputBuilder()
+        .setCustomId('texte')
+        .setLabel('📝 Contenu du message')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('Écrivez votre message ici...')
+        .setRequired(true);
+
+      const row1 = new ActionRowBuilder().addComponents(salonInput);
+      const row2 = new ActionRowBuilder().addComponents(textInput);
+
+      modal.addComponents(row1, row2);
+
+      await interaction.showModal(modal);
+      return;
+    }
+
+    if (interaction.customId === 'open_embed_modal') {
+      const modal = new ModalBuilder()
+        .setCustomId('embedModal')
+        .setTitle('🎨 Créer un embed');
+
+      const salonInput = new TextInputBuilder()
+        .setCustomId('salon')
+        .setLabel('📌 ID du salon (optionnel)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Laissez vide pour envoyer ici')
+        .setRequired(false);
+
+      const titreInput = new TextInputBuilder()
+        .setCustomId('titre')
+        .setLabel('📌 Titre')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false);
+
+      const descInput = new TextInputBuilder()
+        .setCustomId('description')
+        .setLabel('📝 Description')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('Utilisez /n pour les sauts de ligne')
+        .setRequired(false);
+
+      const couleurInput = new TextInputBuilder()
+        .setCustomId('couleur')
+        .setLabel('🎨 Couleur (hex, ex: f1c40f)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('f1c40f')
+        .setRequired(false);
+
+      const imageInput = new TextInputBuilder()
+        .setCustomId('image')
+        .setLabel('🖼️ URL de l\'image (optionnel)')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false);
+
+      const footerInput = new TextInputBuilder()
+        .setCustomId('footer')
+        .setLabel('📌 Footer (optionnel)')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false);
+
+      const row1 = new ActionRowBuilder().addComponents(salonInput);
+      const row2 = new ActionRowBuilder().addComponents(titreInput);
+      const row3 = new ActionRowBuilder().addComponents(descInput);
+      const row4 = new ActionRowBuilder().addComponents(couleurInput);
+      const row5 = new ActionRowBuilder().addComponents(imageInput);
+      const row6 = new ActionRowBuilder().addComponents(footerInput);
+
+      modal.addComponents(row1, row2, row3, row4, row5, row6);
+
+      await interaction.showModal(modal);
+      return;
+    }
+  }
+
   // ========== MODALS ==========
   if (interaction.isModalSubmit()) {
     if (interaction.customId === 'messageModal') {
