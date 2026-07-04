@@ -1,0 +1,13 @@
+{
+  "name": "sysnet-plus",
+  "version": "1.0.0",
+  "description": "Bot communautaire pour Sysnet (tickets, giveaways, statut, etc.)",
+  "main": "sysnetdiscord.js",
+  "scripts": {
+    "start": "node sysnetdiscord.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
+  }
+}
