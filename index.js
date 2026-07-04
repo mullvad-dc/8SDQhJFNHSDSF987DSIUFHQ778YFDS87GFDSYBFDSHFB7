@@ -20,7 +20,6 @@ const PREFIX = '!';
 const TOKEN = process.env.TOKEN;
 const EMBED_COLOR = '#f1c40f';
 
-// IDs des salons de logs
 const LOGS = {
   tickets: '1522768424777027754',
   messages: '1523019843962409075',
@@ -36,14 +35,12 @@ const LOGS = {
   raids: '1523020721100554312'
 };
 
-// IDs des rôles (permis)
 const ROLES = {
   muteUnmute: ['1522759758338064384', '1522756598236319836'],
   ticket: '1522759354774716556',
   fullPerms: ['1522757429501362307', '1522757708946604083', '1522757813074530416']
 };
 
-// Rôles autorisés pour !help
 const HELP_ROLES = [
   '1522760141403848724',
   '1522759758338064384',
@@ -54,14 +51,12 @@ const HELP_ROLES = [
   '1522757813074530416'
 ];
 
-// IDs spécifiques
 const INVITE_CHANNEL_ID = '1522761566242607114';
 const STATUT_CHANNEL_ID = '1522762774676115687';
 const ROLE_STATUT_ID = '1522755616958054430';
 const TICKET_CATEGORY_ID = '1522768228848369804';
-const BOT_ID = '1523031330340868117'; // ID du bot
+const BOT_ID = '1523031330340868117';
 
-// Cooldowns
 const COOLDOWNS = {
   bl: 15 * 60 * 1000,
   timeout: 10 * 60 * 1000,
@@ -69,7 +64,6 @@ const COOLDOWNS = {
   everyone: 2 * 60 * 1000
 };
 
-// ========== ÉTAT MÉMOIRE ==========
 const antiLinkEnabled = new Map();
 const cooldowns = new Map();
 const everyoneCooldown = new Map();
@@ -77,7 +71,6 @@ const ticketConfigs = new Map();
 const giveaways = new Map();
 const ticketMessages = new Map();
 
-// Configuration par défaut des tickets
 const DEFAULT_TICKET_CONFIG = {
   title: 'TICKET',
   description: 'Ouvrez le menu déroulant ci-dessous pour ouvrir un ticket',
@@ -87,7 +80,6 @@ const DEFAULT_TICKET_CONFIG = {
   options: ['👑 Rankup', '❓ Question', '🧶 Autre...']
 };
 
-// ========== FONCTIONS UTILITAIRES ==========
 function getLogChannel(guild, type) {
   const id = LOGS[type];
   if (!id) return null;
@@ -172,7 +164,6 @@ function hasTicketAccess(member) {
   return false;
 }
 
-// ========== ANTI-BOT & DÉTECTION RAID ==========
 let joinCount = 0;
 let joinTimer = null;
 
@@ -251,7 +242,6 @@ client.on('guildMemberAdd', async member => {
   }
 });
 
-// ========== ANTI-CHANNEL ==========
 client.on('channelCreate', async channel => {
   const audit = await channel.guild.fetchAuditLogs({ type: AuditLogEvent.ChannelCreate, limit: 1 });
   const entry = audit.entries.first();
@@ -303,7 +293,6 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
   }
 });
 
-// ========== STOCKAGE DES MESSAGES DES TICKETS ==========
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   if (!message.guild) return;
@@ -323,7 +312,6 @@ client.on('messageCreate', async message => {
     if (msgs.length > 1000) msgs.shift();
   }
 
-  // Anti-link
   const enabled = antiLinkEnabled.get(message.guild.id) || false;
   if (enabled && !hasAdminPerm(message.member)) {
     const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|\.gg\/[^\s]+)/gi;
@@ -343,7 +331,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // Anti-everyone
   if (message.content.includes('@everyone') || message.content.includes('@here')) {
     const last = everyoneCooldown.get(message.author.id) || 0;
     const now = Date.now();
@@ -388,7 +375,6 @@ client.on('messageCreate', async message => {
       if (hasLink && !member.roles.cache.has(role.id)) {
         await member.roles.add(role);
         await message.channel.send(`✅ ${member.user}, vous avez reçu le rôle **${role.name}** !`);
-        // Log
         const logEmbed = new EmbedBuilder()
           .setColor(EMBED_COLOR)
           .setTitle('✅ Rôle attribué via ping')
@@ -401,8 +387,9 @@ client.on('messageCreate', async message => {
         await message.channel.send(`${member.user}, vous devez mettre le lien **discord.gg/teadMR4zgG** (ou .gg/teadMR4zgG, /teadMR4zgG) dans votre statut personnalisé, puis pingez-moi à nouveau.`);
       }
     }
+  }
+});
 
-// ========== RÔLE VIA STATUT (surveillance automatique) ==========
 client.on('presenceUpdate', async (oldPresence, newPresence) => {
   if (!newPresence.guild) return;
   const member = newPresence.member;
@@ -451,7 +438,6 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
   }
 });
 
-// ========== COMMANDES ==========
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   if (!message.guild) return;
@@ -470,7 +456,6 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'commandes', null, embed);
   }
 
-  // ========== HELP ==========
   if (command === 'help') {
     if (!hasHelpPerm(member)) {
       return message.channel.send('❌ Vous n\'avez pas la permission de voir l\'aide.')
@@ -517,7 +502,6 @@ client.on('messageCreate', async message => {
     return message.channel.send({ embeds: [embed] });
   }
 
-  // ========== PERMISSIONS ==========
   if (['bl', 'unbl', 'kick', 'mute', 'unmute'].includes(command)) {
     if (!hasPermission(member, command)) {
       return message.channel.send('❌ Vous n\'avez pas la permission.')
@@ -531,7 +515,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== BL ==========
   if (command === 'bl') {
     const target = message.mentions.users.first() || client.users.cache.get(args[0]);
     if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
@@ -554,7 +537,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== UNBL ==========
   if (command === 'unbl') {
     const target = args[0];
     if (!target) return message.channel.send('❌ ID requis.').then(m => setTimeout(() => m.delete(), 10000));
@@ -572,7 +554,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== KICK ==========
   if (command === 'kick') {
     const target = message.mentions.users.first() || client.users.cache.get(args[0]);
     if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
@@ -599,7 +580,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== MUTE ==========
   if (command === 'mute') {
     const target = message.mentions.users.first() || client.users.cache.get(args[0]);
     if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
@@ -627,7 +607,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== UNMUTE ==========
   if (command === 'unmute') {
     const target = message.mentions.users.first() || client.users.cache.get(args[0]);
     if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
@@ -646,7 +625,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== ANTI-LINK ==========
   if (command === 'anti-link') {
     const current = antiLinkEnabled.get(message.guild.id) || false;
     antiLinkEnabled.set(message.guild.id, !current);
@@ -660,7 +638,6 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'systeme', null, embed);
   }
 
-  // ========== LOCK ==========
   if (command === 'lock') {
     const channels = message.guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
     let count = 0;
@@ -679,7 +656,6 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'systeme', null, embed);
   }
 
-  // ========== UNLOCK ==========
   if (command === 'unlock') {
     const channels = message.guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
     let count = 0;
@@ -698,7 +674,6 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'systeme', null, embed);
   }
 
-  // ========== CLEAR ==========
   if (command === 'clear') {
     const amount = parseInt(args[0]);
     if (!amount || amount < 1 || amount > 100) return message.channel.send('❌ Nombre entre 1 et 100.').then(m => setTimeout(() => m.delete(), 10000));
@@ -717,7 +692,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== CLEAN ==========
   if (command === 'clean') {
     try {
       let fetched;
@@ -738,7 +712,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== SETSTATUS ==========
   if (command === 'setstatus') {
     const type = args[0]?.toLowerCase();
     const text = args.slice(1).join(' ');
@@ -753,7 +726,6 @@ client.on('messageCreate', async message => {
     message.channel.send(`✅ Statut mis à jour : ${type} ${text}`).then(m => setTimeout(() => m.delete(), 5000));
   }
 
-  // ========== TICKET CONFIG ==========
   if (command === 'ticket' && args[0] === 'config' && args[1] === 'set') {
     if (!hasAdminPerm(member)) {
       return message.channel.send('❌ Commande réservée aux administrateurs.')
@@ -785,7 +757,6 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'systeme', null, embed);
   }
 
-  // ========== TICKET SEND ==========
   if (command === 'ticket' && args[0] === 'send') {
     if (!hasAdminPerm(member)) {
       return message.channel.send('❌ Commande réservée aux administrateurs.')
@@ -828,7 +799,6 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'tickets', null, logEmbed);
   }
 
-  // ========== GIVEAWAY ==========
   if (command === 'giveaway') {
     if (args[0] === 'force') {
       const msgId = args[1];
@@ -931,7 +901,6 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'moderation', null, logEmbed);
   }
 
-  // ========== MESSAGE ==========
   if (command === 'message') {
     const text = args.slice(1).join(' ').replace(/\*n/g, '\n');
     const channel = message.mentions.channels.first();
@@ -940,7 +909,6 @@ client.on('messageCreate', async message => {
     await message.delete().catch(() => {});
   }
 
-  // ========== EMBED ==========
   if (command === 'embed') {
     const title = args[1] || ' ';
     const description = args[2] || ' ';
@@ -960,7 +928,6 @@ client.on('messageCreate', async message => {
   }
 });
 
-// ========== INTERACTION POUR LES TICKETS ==========
 client.on('interactionCreate', async interaction => {
   if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
     const option = interaction.values[0];
@@ -1048,7 +1015,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // ========== BOUTONS TICKETS ==========
   if (interaction.isButton()) {
     const customId = interaction.customId;
 
@@ -1165,7 +1131,6 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// ========== FONCTION DE GÉNÉRATION DE TRANSCRIPT ==========
 async function generateTranscript(channel) {
   const messages = ticketMessages.get(channel.id) || [];
   
@@ -1301,7 +1266,6 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// ========== INITIALISATION ==========
 client.once('ready', async () => {
   console.log(`✅ Bot connecté en tant que ${client.user.tag}`);
   client.user.setActivity("j'protege tout le monde", { type: ActivityType.Playing });
@@ -1319,7 +1283,6 @@ client.once('ready', async () => {
   }
 });
 
-// ========== SERVEUR HTTP POUR RENDER ==========
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -1332,5 +1295,4 @@ app.listen(port, () => {
   console.log(`✅ Serveur HTTP sur le port ${port}`);
 });
 
-// ========== CONNEXION ==========
 client.login(TOKEN);
