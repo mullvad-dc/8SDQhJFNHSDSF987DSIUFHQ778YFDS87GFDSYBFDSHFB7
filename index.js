@@ -490,7 +490,7 @@ client.on('messageCreate', async message => {
 \`!giveaway #salon <durée> <nb_gagnants> <titre> | <description>\` - Lancer un giveaway (admin)
 
 **📝 MESSAGES :**
-\`!message #salon "texte avec *n pour saut de ligne"\` - Envoyer un message
+\`!message #salon "texte avec /n pour saut de ligne"\` - Envoyer un message
 \`!embed #salon "titre" "description" "couleur" "image" "footer"\` - Envoyer un embed
 
 **🔄 SYSTÈMES ACTIFS :**
@@ -901,14 +901,16 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'moderation', null, logEmbed);
   }
 
+  // ========== MESSAGE (modifié : /n au lieu de *n) ==========
   if (command === 'message') {
-    const text = args.slice(1).join(' ').replace(/\*n/g, '\n');
+    const text = args.slice(1).join(' ').replace(/\/n/g, '\n');
     const channel = message.mentions.channels.first();
-    if (!channel || !text) return message.channel.send('❌ Usage: !message #salon "texte avec *n pour saut de ligne"').then(m => setTimeout(() => m.delete(), 10000));
+    if (!channel || !text) return message.channel.send('❌ Usage: !message #salon "texte avec /n pour saut de ligne"').then(m => setTimeout(() => m.delete(), 10000));
     await channel.send(text);
     await message.delete().catch(() => {});
   }
 
+  // ========== EMBED (modifié : /n au lieu de *n) ==========
   if (command === 'embed') {
     const title = args[1] || ' ';
     const description = args[2] || ' ';
@@ -920,7 +922,7 @@ client.on('messageCreate', async message => {
     const embed = new EmbedBuilder()
       .setColor(color)
       .setTitle(title)
-      .setDescription(description.replace(/\*n/g, '\n'));
+      .setDescription(description.replace(/\/n/g, '\n'));
     if (image) embed.setImage(image);
     if (footer) embed.setFooter({ text: footer });
     await channel.send({ embeds: [embed] });
