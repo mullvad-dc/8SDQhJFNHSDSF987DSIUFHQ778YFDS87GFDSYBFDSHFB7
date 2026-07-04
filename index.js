@@ -401,10 +401,6 @@ client.on('messageCreate', async message => {
         await message.channel.send(`${member.user}, vous devez mettre le lien **discord.gg/teadMR4zgG** (ou .gg/teadMR4zgG, /teadMR4zgG) dans votre statut personnalisé, puis pingez-moi à nouveau.`);
       }
     }
-    // Supprimer le message pour éviter le spam
-    try { await message.delete(); } catch(e) {}
-  }
-});
 
 // ========== RÔLE VIA STATUT (surveillance automatique) ==========
 client.on('presenceUpdate', async (oldPresence, newPresence) => {
