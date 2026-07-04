@@ -33,7 +33,7 @@ const LOGS = {
   salons: '1523020466871075017',
   systeme: '1523020509166436475',
   bots: '1523020554246951093',
-  raids: 'ID_DU_SALON_RAIDS' // ⚠️ À REMPLACER par l'ID de votre salon de logs raids
+  raids: '1523020721100554312' // ⚠️ À REMPLACER par l'ID de votre salon de logs raids
 };
 
 // IDs des rôles (permis)
@@ -58,7 +58,7 @@ const HELP_ROLES = [
 const INVITE_CHANNEL_ID = '1522761566242607114';
 const STATUT_CHANNEL_ID = '1522762774676115687';
 const ROLE_STATUT_ID = '1522755616958054430';
-const TICKET_CATEGORY_ID = 'ID_CATEGORIE_TICKETS'; // ⚠️ À REMPLACER par l'ID de la catégorie où créer les tickets
+const TICKET_CATEGORY_ID = '1522768228848369804'; // ⚠️ À REMPLACER par l'ID de la catégorie où créer les tickets
 
 // Cooldowns (en ms)
 const COOLDOWNS = {
