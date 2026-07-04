@@ -55,7 +55,6 @@ const INVITE_CHANNEL_ID = '1522761566242607114';
 const STATUT_CHANNEL_ID = '1522762774676115687';
 const ROLE_STATUT_ID = '1522755616958054430';
 const TICKET_CATEGORY_ID = '1522768228848369804';
-const BOT_ID = '1523031330340868117';
 
 const COOLDOWNS = {
   bl: 15 * 60 * 1000,
@@ -352,7 +351,6 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // ========== VÉRIFICATION STATUT VIA MENTION DU BOT ==========
   if (message.channel.id === STATUT_CHANNEL_ID && message.mentions.has(client.user.id)) {
     const member = message.member;
     const presence = member.presence;
@@ -901,7 +899,7 @@ client.on('messageCreate', async message => {
     await sendLog(message.guild, 'moderation', null, logEmbed);
   }
 
-  // ========== MESSAGE (modifié : /n au lieu de *n) ==========
+  // ========== MESSAGE (avec /n) ==========
   if (command === 'message') {
     const text = args.slice(1).join(' ').replace(/\/n/g, '\n');
     const channel = message.mentions.channels.first();
@@ -910,15 +908,15 @@ client.on('messageCreate', async message => {
     await message.delete().catch(() => {});
   }
 
-// ========== EMBED (modifié : /n + gestion du # dans la couleur + ID salon) ==========
-if (command === 'embed') {
+  // ========== EMBED (avec /n et gestion ID + #) ==========
+  if (command === 'embed') {
     // Récupérer le salon : soit par mention, soit par ID
     let channel = message.mentions.channels.first();
     if (!channel) {
-        const channelId = args[0];
-        if (channelId && /^\d+$/.test(channelId)) {
-            channel = message.guild.channels.cache.get(channelId);
-        }
+      const channelId = args[0];
+      if (channelId && /^\d+$/.test(channelId)) {
+        channel = message.guild.channels.cache.get(channelId);
+      }
     }
     if (!channel) return message.channel.send('❌ Salon invalide.').then(m => setTimeout(() => m.delete(), 10000));
 
@@ -930,15 +928,16 @@ if (command === 'embed') {
     const footer = args.slice(5).join(' ') || null;
 
     const embed = new EmbedBuilder()
-        .setColor(color)
-        .setTitle(title)
-        .setDescription(description.replace(/\/n/g, '\n'));
+      .setColor(color)
+      .setTitle(title)
+      .setDescription(description.replace(/\/n/g, '\n'));
     if (image) embed.setImage(image);
     if (footer) embed.setFooter({ text: footer });
 
     await channel.send({ embeds: [embed] });
     await message.delete().catch(() => {});
-}
+  }
+});
 
 client.on('interactionCreate', async interaction => {
   if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
