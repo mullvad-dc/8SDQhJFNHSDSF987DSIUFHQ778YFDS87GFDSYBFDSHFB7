@@ -6,14 +6,13 @@ const { ChannelType } = require('discord.js');
 
 // ========== CONFIGURATION ==========
 
-// Salons déjà visibles par @everyone (NE JAMAIS SUPPRIMER CES 3 SALONS !)
+// Salons déjà visibles par @everyone (seront supprimés après l'ouverture)
 const EVERYONE_CHANNELS = [
   '1522766499142565898',
   '1522766867444531280',
   '1522766536086130788'
 ];
 
-// ========== CONFIGURATION RÉELLE (ACTIVE) ==========
 // Catégories à ouvrir le 19/07/2026 à 20h (Paris)
 const OPEN_CATEGORIES = [
   '1522761111420666096',
@@ -25,11 +24,18 @@ const OPEN_CATEGORIES = [
   '1522764524476960868'
 ];
 
+// Éléments à supprimer après l'ouverture
+const TO_DELETE = [
+  '1522769330201301135',   // Catégorie
+  '1522766499142565898',   // Salon 1
+  '1522766867444531280',   // Salon 2
+  '1522766536086130788'    // Salon 3
+];
+
 // ========== FONCTIONS ==========
 
 /**
- * Configure les salons @everyone (les 3 salons déjà ouverts)
- * Ne supprime JAMAIS les salons, seulement vérifie et ouvre si besoin
+ * Configure les salons @everyone
  */
 async function setupEveryoneChannels(guild) {
   const everyoneRole = guild.roles.everyone;
@@ -61,8 +67,37 @@ async function setupEveryoneChannels(guild) {
 }
 
 /**
- * Ouvre les catégories et leurs salons
- * Ne supprime JAMAIS de salons
+ * Supprime les anciens salons et la catégorie
+ */
+async function deleteOldChannels(guild) {
+  const results = [];
+  
+  console.log('🗑️ Suppression des anciens salons/catégorie...');
+  
+  for (const id of TO_DELETE) {
+    try {
+      const channel = guild.channels.cache.get(id);
+      if (channel) {
+        const name = channel.name;
+        await channel.delete('Suppression automatique lors de l\'ouverture des catégories');
+        results.push({ id, name, success: true });
+        console.log(`✅ ${name} (${id}) supprimé`);
+      } else {
+        results.push({ id, success: false, error: 'Non trouvé' });
+        console.log(`❌ ${id} non trouvé`);
+      }
+    } catch (e) {
+      results.push({ id, success: false, error: e.message });
+      console.error(`❌ Erreur pour ${id}:`, e.message);
+    }
+  }
+  
+  console.log(`📊 ${results.filter(r => r.success).length}/${TO_DELETE.length} éléments supprimés`);
+  return results;
+}
+
+/**
+ * Ouvre les catégories et leurs salons, puis supprime les anciens
  */
 async function openCategories(guild) {
   const everyoneRole = guild.roles.everyone;
@@ -81,7 +116,6 @@ async function openCategories(guild) {
         openedChannels.push(category.name);
         console.log(`✅ Catégorie ${category.name} ouverte à @everyone`);
         
-        // Ouvrir tous les salons dans la catégorie
         const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
         for (const [, child] of children) {
           await child.permissionOverwrites.edit(everyoneRole, {
@@ -97,6 +131,11 @@ async function openCategories(guild) {
       errors.push({ id: categoryId, error: e.message });
       console.error(`❌ Erreur pour la catégorie ${categoryId}:`, e.message);
     }
+  }
+  
+  // ========== SUPPRESSION DES ANCIENS SALONS ==========
+  if (openedChannels.length > 0) {
+    await deleteOldChannels(guild);
   }
   
   console.log(`📊 ${openedChannels.length} catégories ouvertes`);
@@ -135,7 +174,7 @@ function scheduleOpening(guild, sendLog) {
   
   console.log(`⏰ Ouverture programmée dans ${days}j ${hours}h ${minutes}min (${new Date(targetDate).toLocaleString('fr-FR')})`);
   console.log(`📌 Catégories à ouvrir : ${OPEN_CATEGORIES.length} catégories`);
-  console.log(`📌 Les 3 salons @everyone sont déjà ouverts et ne seront PAS supprimés.`);
+  console.log(`📌 Éléments à supprimer après ouverture : ${TO_DELETE.length} éléments`);
   
   return new Promise((resolve) => {
     setTimeout(async () => {
@@ -153,8 +192,10 @@ function scheduleOpening(guild, sendLog) {
 module.exports = {
   EVERYONE_CHANNELS,
   OPEN_CATEGORIES,
+  TO_DELETE,
   setupEveryoneChannels,
   openCategories,
   scheduleOpening,
-  getDelayUntil
+  getDelayUntil,
+  deleteOldChannels
 };
