@@ -6,34 +6,46 @@ const { ChannelType } = require('discord.js');
 
 // ========== CONFIGURATION ==========
 
-// Salons déjà visibles par @everyone
+// Salons déjà visibles par @everyone (NE JAMAIS SUPPRIMER CES 3 SALONS !)
 const EVERYONE_CHANNELS = [
   '1522766499142565898',
   '1522766867444531280',
   '1522766536086130788'
 ];
 
-// ========== CONFIGURATION DE TEST ==========
-// Catégorie de test à ouvrir le 05/07/2026 à 23h (Paris)
-// ⚠️ À REMPLACER par la vraie liste après validation
+// ========== CONFIGURATION DE TEST (ACTIVE) ==========
+// ⚠️ Pour l'instant, seule cette catégorie s'ouvrira le 05/07/2026 à 23h
 const OPEN_CATEGORIES = [
-  '1523429979315245167'  // 🧪 Catégorie de test (corrigée)
+  '1523429979315245167'   // 🧪 Catégorie de test (SEULEMENT celle-ci pour l'instant)
 ];
 
-// ========== CONFIGURATION RÉELLE (commentée pour le moment) ==========
-// Catégories à ouvrir le 19/07/2026 à 20h (Paris)
-const OPEN_CATEGORIES = [
-  '1523429979315245167'
-];
+// ========== CONFIGURATION RÉELLE (DÉSACTIVÉE pour l'instant) ==========
+// ⚠️ Quand vous voudrez ouvrir toutes les catégories le 19/07/2026 :
+// 1. Commentez la configuration de test (ci-dessus)
+// 2. Décommentez la configuration réelle (ci-dessous)
+// 3. Changez la date dans scheduleOpening (voir ligne ~85)
+//
+// const OPEN_CATEGORIES = [
+//   '1522761111420666096',
+//   '1522762054660915260',
+//   '1522762306461630494',
+//   '1522762568547045508',
+//   '1522768228848369804',
+//   '1522762856372895764',
+//   '1522764524476960868'
+// ];
 
 // ========== FONCTIONS ==========
 
 /**
- * Configure les salons @everyone
+ * Configure les salons @everyone (les 3 salons déjà ouverts)
+ * Ne supprime JAMAIS les salons, seulement vérifie et ouvre si besoin
  */
 async function setupEveryoneChannels(guild) {
   const everyoneRole = guild.roles.everyone;
   const results = [];
+  
+  console.log('🔍 Vérification des 3 salons @everyone...');
   
   for (const channelId of EVERYONE_CHANNELS) {
     try {
@@ -43,7 +55,7 @@ async function setupEveryoneChannels(guild) {
           ViewChannel: true
         });
         results.push({ id: channelId, name: channel.name, success: true });
-        console.log(`✅ Salon ${channel.name} ouvert à @everyone`);
+        console.log(`✅ Salon ${channel.name} (${channelId}) est ouvert à @everyone`);
       } else {
         results.push({ id: channelId, success: false, error: 'Salon non trouvé' });
         console.log(`❌ Salon ${channelId} non trouvé`);
@@ -54,16 +66,20 @@ async function setupEveryoneChannels(guild) {
     }
   }
   
+  console.log(`📊 ${results.filter(r => r.success).length}/3 salons @everyone sont ouverts`);
   return results;
 }
 
 /**
  * Ouvre les catégories et leurs salons
+ * Ne supprime JAMAIS de salons
  */
 async function openCategories(guild) {
   const everyoneRole = guild.roles.everyone;
   const openedChannels = [];
   const errors = [];
+  
+  console.log('🔓 Ouverture des catégories...');
   
   for (const categoryId of OPEN_CATEGORIES) {
     try {
@@ -93,12 +109,12 @@ async function openCategories(guild) {
     }
   }
   
+  console.log(`📊 ${openedChannels.length} catégories ouvertes`);
   return { opened: openedChannels, errors };
 }
 
 /**
  * Calcule le délai jusqu'à la date cible
- * @param {Date} targetDate - Date cible
  */
 function getDelayUntil(targetDate) {
   const now = new Date();
@@ -109,7 +125,8 @@ function getDelayUntil(targetDate) {
  * Programme l'ouverture des catégories
  */
 function scheduleOpening(guild, sendLog) {
-  // Date cible : 05/07/2026 à 23h (Paris) = 21h UTC (heure d'été, UTC+2)
+  // ⚠️ DATE DE TEST : 05/07/2026 à 23h (Paris) = 21h UTC
+  // Quand vous passerez en production, changez pour : 19/07/2026 à 20h
   const targetDate = new Date(Date.UTC(2026, 6, 5, 21, 0, 0));
   const delay = getDelayUntil(targetDate);
   
@@ -129,6 +146,7 @@ function scheduleOpening(guild, sendLog) {
   
   console.log(`⏰ [TEST] Ouverture programmée dans ${days}j ${hours}h ${minutes}min (${new Date(targetDate).toLocaleString('fr-FR')})`);
   console.log(`📌 [TEST] Catégorie à ouvrir : ${OPEN_CATEGORIES.join(', ')}`);
+  console.log(`📌 Les 3 salons @everyone sont déjà ouverts et ne seront PAS supprimés.`);
   
   return new Promise((resolve) => {
     setTimeout(async () => {
