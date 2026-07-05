@@ -538,6 +538,61 @@ client.on('messageCreate', async message => {
     return;
   }
 
+  // ========== RENEW ==========
+  if (command === 'renew') {
+    if (!hasRenewPerm(member)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission d\'utiliser cette commande.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    
+    const channel = message.channel;
+    
+    if (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildVoice) {
+      return message.channel.send('❌ Cette commande ne peut être utilisée que dans un salon texte ou vocal.')
+        .then(m => setTimeout(() => m.delete(), 10000));
+    }
+    
+    try {
+      const permissionOverwrites = channel.permissionOverwrites.cache.map(overwrite => ({
+        id: overwrite.id,
+        allow: overwrite.allow.toArray ? overwrite.allow.toArray() : [],
+        deny: overwrite.deny.toArray ? overwrite.deny.toArray() : [],
+        type: overwrite.type
+      }));
+      
+      const newChannel = await message.guild.channels.create({
+        name: channel.name,
+        type: channel.type,
+        parent: channel.parentId,
+        permissionOverwrites: permissionOverwrites,
+        topic: channel.topic || null,
+        nsfw: channel.nsfw || false,
+        rateLimitPerUser: channel.rateLimitPerUser || 0,
+        position: channel.position
+      });
+      
+      await channel.delete(`Renew par ${member.user.tag}`);
+      await newChannel.send(`🔄 Le salon a été renew par ${member.user.tag}.`);
+      
+      const logEmbed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('🔄 Renew')
+        .setDescription(`Le salon ${newChannel.name} a été renew par ${member.user.tag}`)
+        .addFields(
+          { name: 'Ancien ID', value: channel.id, inline: true },
+          { name: 'Nouvel ID', value: newChannel.id, inline: true }
+        )
+        .setTimestamp();
+      await sendLog(message.guild, 'systeme', null, logEmbed);
+      
+    } catch (error) {
+      console.error('Erreur renew:', error);
+      message.channel.send(`❌ Erreur lors du renew: ${error.message}`)
+        .then(m => setTimeout(() => m.delete(), 10000));
+    }
+    return;
+  }
+  
   // ========== BAN ==========
   if (command === 'bl') {
     if (!hasPermission(member, command)) {
