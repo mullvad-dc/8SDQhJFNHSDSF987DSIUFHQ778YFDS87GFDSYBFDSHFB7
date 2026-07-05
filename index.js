@@ -544,6 +544,58 @@ client.on('messageCreate', async message => {
     return;
   }
 
+  // ========== INVITE ==========
+  if (command === 'invite') {
+    // Récupérer la cible : soit mention, soit ID, soit l'auteur
+    let target = message.mentions.users.first();
+    if (!target) {
+      const userId = args[0];
+      if (userId && /^\d+$/.test(userId)) {
+        target = client.users.cache.get(userId);
+        if (!target) {
+          try { target = await client.users.fetch(userId); } catch (e) {}
+        }
+      }
+    }
+    if (!target) target = message.author;
+
+    // Récupérer le membre
+    const targetMember = await message.guild.members.fetch(target.id);
+    if (!targetMember) {
+      return message.channel.send('❌ Membre introuvable.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+
+    try {
+      // Récupérer les invites du serveur
+      const invites = await message.guild.invites.fetch();
+      
+      // Compter le nombre d'invitations de la cible
+      let count = 0;
+      for (const [, invite] of invites) {
+        if (invite.inviter && invite.inviter.id === target.id) {
+          count += invite.uses || 0;
+        }
+      }
+
+      // Envoyer le résultat
+      const embed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('📨 Statistiques d\'invitations')
+        .setDescription(`${target.tag} a invité **${count}** personne${count > 1 ? 's' : ''} sur le serveur.`)
+        .setTimestamp()
+        .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
+
+      await message.channel.send({ embeds: [embed] });
+      await message.delete().catch(() => {});
+      
+    } catch (error) {
+      console.error('Erreur invite:', error);
+      message.channel.send('❌ Erreur lors de la récupération des invitations.')
+        .then(m => setTimeout(() => m.delete(), 10000));
+    }
+    return;
+  }
+  
   // ========== RENEW ==========
   if (command === 'renew') {
     if (!hasRenewPerm(member)) {
