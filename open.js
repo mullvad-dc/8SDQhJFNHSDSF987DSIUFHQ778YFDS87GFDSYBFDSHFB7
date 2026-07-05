@@ -13,16 +13,24 @@ const EVERYONE_CHANNELS = [
   '1522766536086130788'
 ];
 
-// Catégories à ouvrir le 19/07/2026 à 20h (Paris)
+// ========== CONFIGURATION DE TEST ==========
+// Catégorie de test à ouvrir le 05/07/2026 à 23h (Paris)
+// ⚠️ À REMPLACER par la vraie liste après validation
 const OPEN_CATEGORIES = [
-  '1522761111420666096',
-  '1522762054660915260',
-  '1522762306461630494',
-  '1522762568547045508',
-  '1522768228848369804',
-  '1522762856372895764',
-  '1522764524476960868'
+  '1523429979315245167'  // 🧪 Catégorie de test (corrigée)
 ];
+
+// ========== CONFIGURATION RÉELLE (commentée pour le moment) ==========
+// Catégories à ouvrir le 19/07/2026 à 20h (Paris)
+// const OPEN_CATEGORIES = [
+//   '1522761111420666096',
+//   '1522762054660915260',
+//   '1522762306461630494',
+//   '1522762568547045508',
+//   '1522768228848369804',
+//   '1522762856372895764',
+//   '1522764524476960868'
+// ];
 
 // ========== FONCTIONS ==========
 
@@ -95,11 +103,10 @@ async function openCategories(guild) {
 }
 
 /**
- * Calcule le délai jusqu'au 19/07/2026 à 20h (Paris)
+ * Calcule le délai jusqu'à la date cible
+ * @param {Date} targetDate - Date cible
  */
-function getOpeningDelay() {
-  // 19 juillet 2026 à 20h (Paris) = 18h UTC (heure d'été, UTC+2)
-  const targetDate = new Date(Date.UTC(2026, 6, 19, 18, 0, 0));
+function getDelayUntil(targetDate) {
   const now = new Date();
   return targetDate.getTime() - now.getTime();
 }
@@ -108,7 +115,9 @@ function getOpeningDelay() {
  * Programme l'ouverture des catégories
  */
 function scheduleOpening(guild, sendLog) {
-  const delay = getOpeningDelay();
+  // Date cible : 05/07/2026 à 23h (Paris) = 21h UTC (heure d'été, UTC+2)
+  const targetDate = new Date(Date.UTC(2026, 6, 5, 21, 0, 0));
+  const delay = getDelayUntil(targetDate);
   
   if (delay <= 0) {
     console.log('⚠️ La date d\'ouverture est déjà passée, ouverture immédiate...');
@@ -124,10 +133,12 @@ function scheduleOpening(guild, sendLog) {
   const hours = Math.floor((delay % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((delay % (1000 * 60 * 60)) / (1000 * 60));
   
-  console.log(`⏰ Ouverture programmée dans ${days}j ${hours}h ${minutes}min (${new Date(Date.now() + delay).toLocaleString('fr-FR')})`);
+  console.log(`⏰ [TEST] Ouverture programmée dans ${days}j ${hours}h ${minutes}min (${new Date(targetDate).toLocaleString('fr-FR')})`);
+  console.log(`📌 [TEST] Catégorie à ouvrir : ${OPEN_CATEGORIES.join(', ')}`);
   
   return new Promise((resolve) => {
     setTimeout(async () => {
+      console.log(`🔓 [TEST] Déclenchement de l'ouverture...`);
       const result = await openCategories(guild);
       if (result.opened.length > 0 && sendLog) {
         sendLog(guild, result);
@@ -144,5 +155,5 @@ module.exports = {
   setupEveryoneChannels,
   openCategories,
   scheduleOpening,
-  getOpeningDelay
+  getDelayUntil
 };
