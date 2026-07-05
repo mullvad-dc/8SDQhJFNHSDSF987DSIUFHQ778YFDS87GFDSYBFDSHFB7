@@ -39,7 +39,8 @@ const LOGS = {
 const ROLES = {
   muteUnmute: ['1522759758338064384', '1522756598236319836'],
   ticket: '1522759354774716556',
-  fullPerms: ['1522757429501362307', '1522757708946604083', '1522757813074530416']
+  fullPerms: ['1522757429501362307', '1522757708946604083', '1522757813074530416'],
+  renewRole: '1522757813074530416'
 };
 
 const HELP_ROLES = [
@@ -112,6 +113,17 @@ function hasPermission(member, command) {
   return false;
 }
 
+// ========== AJOUTEZ ICI ==========
+function hasRenewPerm(member) {
+  if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
+  return member.roles.cache.has(ROLES.renewRole);
+}
+// ========== FIN AJOUT ==========
+
+function canBypassCooldown(member) {
+  return member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+         member.roles.cache.some(r => ROLES.fullPerms.includes(r.id));
+}
 function hasAdminPerm(member) {
   if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
   return member.roles.cache.some(r => ROLES.fullPerms.includes(r.id));
