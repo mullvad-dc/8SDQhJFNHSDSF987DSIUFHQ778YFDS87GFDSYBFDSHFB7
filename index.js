@@ -751,54 +751,67 @@ client.on('interactionCreate', async interaction => {
   }
 
 // ========== MODALS ==========
-if (interaction.isModalSubmit()) {
-  if (interaction.customId === 'messageModal') {
-    await interaction.deferReply({ ephemeral: true });
-    
-    const salonId = interaction.fields.getTextInputValue('salon')?.trim();
-    const texte = interaction.fields.getTextInputValue('texte');
-    
-    console.log(`📝 Message modal - Salon ID: "${salonId}", Texte: "${texte}"`);
-    
-    let channel;
-    if (salonId && /^\d+$/.test(salonId)) {
-      channel = interaction.guild.channels.cache.get(salonId);
-      console.log(`🔍 Recherche du salon avec ID: ${salonId}, trouvé: ${!!channel}`);
-    } else {
-      channel = interaction.channel;
-      console.log(`📌 Utilisation du salon actuel: ${channel.name} (${channel.id})`);
-    }
-    
+if (interaction.customId === 'messageModal') {
+  await interaction.deferReply({ ephemeral: true });
+  
+  const salonId = interaction.fields.getTextInputValue('salon')?.trim();
+  let texte = interaction.fields.getTextInputValue('texte');
+  
+  let channel;
+  if (salonId && /^\d+$/.test(salonId)) {
+    channel = interaction.guild.channels.cache.get(salonId);
     if (!channel) {
-      console.log(`❌ Salon non trouvé pour ID: ${salonId}`);
-      return interaction.editReply({ 
-        content: `❌ Salon invalide. Vérifiez l'ID. ID fourni: ${salonId || 'aucun'}`, 
-        ephemeral: true 
-      });
+      try {
+        channel = await interaction.guild.channels.fetch(salonId);
+      } catch (e) {
+        console.error('Erreur fetch salon:', e);
+      }
     }
-
-    try {
-      console.log(`📤 Envoi du message dans ${channel.name} (${channel.id})`);
-      await channel.send(texte);
-      console.log(`✅ Message envoyé avec succès`);
-      await interaction.editReply({ content: `✅ Message envoyé dans ${channel}`, ephemeral: true });
-      
-      const logEmbed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle('📝 Message envoyé')
-        .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
-        .addFields({ name: 'Contenu', value: texte.substring(0, 100) + (texte.length > 100 ? '...' : '') })
-        .setTimestamp();
-      await sendLog(interaction.guild, 'messages', null, logEmbed);
-    } catch (error) {
-      console.error('❌ Erreur messageModal:', error);
-      await interaction.editReply({ 
-        content: `❌ Erreur lors de l'envoi du message: ${error.message}`, 
-        ephemeral: true 
-      });
-    }
-    return;
+  } else {
+    channel = interaction.channel;
   }
+  
+  if (!channel) {
+    return interaction.editReply({ 
+      content: `❌ Salon invalide. Vérifiez l'ID.`, 
+      ephemeral: true 
+    });
+  }
+
+  try {
+    // Vérifier la longueur réelle du message (en comptant les caractères UTF-8)
+    const byteLength = Buffer.byteLength(texte, 'utf8');
+    console.log(`📝 Longueur du message: ${texte.length} caractères, ${byteLength} octets`);
+    
+    // Si le message dépasse 2000 caractères (ou 2000 octets en UTF-8), on le tronque
+    if (texte.length > 2000 || byteLength > 2000) {
+      // Tronquer à 1995 caractères pour être sûr
+      texte = texte.substring(0, 1995) + '...';
+      await interaction.editReply({ 
+        content: `⚠️ Votre message a été tronqué car il dépassait la limite de 2000 caractères.`, 
+        ephemeral: true 
+      });
+    }
+    
+    await channel.send(texte);
+    await interaction.editReply({ content: `✅ Message envoyé dans ${channel}`, ephemeral: true });
+    
+    const logEmbed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle('📝 Message envoyé')
+      .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
+      .addFields({ name: 'Contenu', value: texte.substring(0, 100) + (texte.length > 100 ? '...' : '') })
+      .setTimestamp();
+    await sendLog(interaction.guild, 'messages', null, logEmbed);
+  } catch (error) {
+    console.error('❌ Erreur messageModal:', error);
+    await interaction.editReply({ 
+      content: `❌ Erreur: ${error.message}`, 
+      ephemeral: true 
+    });
+  }
+  return;
+}
 
   if (interaction.customId === 'embedModal') {
     await interaction.deferReply({ ephemeral: true });
