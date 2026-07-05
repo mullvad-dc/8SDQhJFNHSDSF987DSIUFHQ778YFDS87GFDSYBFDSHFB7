@@ -613,59 +613,37 @@ client.on('messageCreate', async message => {
   }
   const reason = args.slice(1).join(' ') || 'Aucune raison';
   try {
+    // Récupérer le membre AVANT de kick
     const targetMember = await message.guild.members.fetch(target.id);
-    await targetMember.kick(reason);
     
-    // ========== ENVOI DU MP ==========
+    // ========== ENVOI DU MP (AVANT LE KICK) ==========
+    let mpEnvoye = false;
     try {
       await target.send(`🔱 **Vous avez été kick du serveur Sysnet**\n\n**Raison :** ${reason}\n\nVous pouvez revenir quand vous voulez avec ce lien :\nhttps://discord.gg/teadMR4zgG`);
+      mpEnvoye = true;
+      console.log(`✅ MP envoyé à ${target.tag}`);
     } catch (e) {
-      console.log(`Impossible d'envoyer un MP à ${target.tag}`);
+      console.log(`❌ Impossible d'envoyer un MP à ${target.tag}: ${e.message}`);
     }
+    
+    // Kick après le MP
+    await targetMember.kick(reason);
     
     const embed = new EmbedBuilder()
       .setColor('#ff9900')
       .setTitle('👢 Kick')
       .setDescription(`${target.tag} a été kick par ${member.user.tag}`)
-      .addFields({ name: 'Raison', value: reason })
+      .addFields(
+        { name: 'Raison', value: reason },
+        { name: 'MP envoyé', value: mpEnvoye ? '✅ Oui' : '❌ Non (MP fermé ou bot bloqué)' }
+      )
       .setTimestamp();
     await sendLog(message.guild, 'moderation', null, embed);
     message.channel.send(`✅ ${target.tag} a été kick.`).then(m => setTimeout(() => m.delete(), 5000));
   } catch (e) {
-    message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    message.channel.send(`❌ Erreur: ${e.message}`).then(m => setTimeout(() => m.delete(), 10000));
   }
 }
-
-  if (command === 'unmute') {
-    if (!hasPermission(member, command)) {
-      return message.channel.send('❌ Vous n\'avez pas la permission.')
-        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
-    }
-    let target = message.mentions.users.first();
-    if (!target) {
-      const userId = args[0];
-      if (userId && /^\d+$/.test(userId)) {
-        target = client.users.cache.get(userId);
-        if (!target) {
-          try { target = await client.users.fetch(userId); } catch (e) {}
-        }
-      }
-    }
-    if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
-    try {
-      const targetMember = await message.guild.members.fetch(target.id);
-      await targetMember.timeout(null);
-      const embed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle('🔊 Unmute')
-        .setDescription(`${target.tag} a été unmute par ${member.user.tag}`)
-        .setTimestamp();
-      await sendLog(message.guild, 'moderation', null, embed);
-      message.channel.send(`✅ ${target.tag} a été unmute.`).then(m => setTimeout(() => m.delete(), 5000));
-    } catch (e) {
-      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
-    }
-  }
 
   if (command === 'anti-link') {
     const current = antiLinkEnabled.get(message.guild.id) || false;
