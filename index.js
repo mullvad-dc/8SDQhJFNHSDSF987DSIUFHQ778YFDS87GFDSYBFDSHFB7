@@ -15,7 +15,7 @@ const client = new Client({
   ]
 });
 
-// ========== CONSTANTES (inchangées) ==========
+// ========== CONSTANTES ==========
 const PREFIX = '!';
 const TOKEN = process.env.TOKEN;
 const EMBED_COLOR = '#f1c40f';
@@ -79,7 +79,6 @@ const DEFAULT_TICKET_CONFIG = {
   options: ['👑 Rankup', '❓ Question', '🧶 Autre...']
 };
 
-// ========== FONCTIONS ==========
 function getLogChannel(guild, type) {
   const id = LOGS[type];
   if (!id) return null;
@@ -167,7 +166,6 @@ function hasTicketAccess(member) {
 let joinCount = 0;
 let joinTimer = null;
 
-// ========== ÉVÉNEMENTS ==========
 client.on('guildMemberAdd', async member => {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
@@ -294,7 +292,6 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
   }
 });
 
-// ========== ANTILINK + ANTI-EVERYONE + STATUT ==========
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   if (!message.guild) return;
@@ -439,7 +436,6 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
   }
 });
 
-// ========== COMMANDES ==========
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   if (!message.guild) return;
@@ -540,10 +536,447 @@ client.on('messageCreate', async message => {
     return;
   }
 
-  // ========== MODÉRATION (inchangée) ==========
-  // ... (toutes vos commandes bl, unbl, kick, mute, unmute, etc.)
-  
-  // Je garde le reste pour éviter de couper, mais vous devez conserver toutes vos commandes existantes !
+  if (command === 'bl') {
+    if (!hasPermission(member, command)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    let target = message.mentions.users.first();
+    if (!target) {
+      const userId = args[0];
+      if (userId && /^\d+$/.test(userId)) {
+        target = client.users.cache.get(userId);
+        if (!target) {
+          try { target = await client.users.fetch(userId); } catch (e) {}
+        }
+      }
+    }
+    if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    if (!checkCooldown(member.id, 'bl', member)) {
+      return message.channel.send('⏳ Cooldown 15min.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+    const reason = args.slice(1).join(' ') || 'Aucune raison';
+    try {
+      await message.guild.members.ban(target, { reason });
+      const embed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setTitle('🔨 Ban')
+        .setDescription(`${target.tag} a été banni par ${member.user.tag}`)
+        .addFields({ name: 'Raison', value: reason })
+        .setTimestamp();
+      await sendLog(message.guild, 'moderation', null, embed);
+      message.channel.send(`✅ ${target.tag} a été banni.`).then(m => setTimeout(() => m.delete(), 5000));
+    } catch (e) {
+      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
+
+  if (command === 'unbl') {
+    if (!hasPermission(member, command)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    const target = args[0];
+    if (!target) return message.channel.send('❌ ID requis.').then(m => setTimeout(() => m.delete(), 10000));
+    try {
+      await message.guild.members.unban(target);
+      const embed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('🔓 Unban')
+        .setDescription(`L'utilisateur ${target} a été débanni par ${member.user.tag}`)
+        .setTimestamp();
+      await sendLog(message.guild, 'moderation', null, embed);
+      message.channel.send(`✅ Utilisateur ${target} débanni.`).then(m => setTimeout(() => m.delete(), 5000));
+    } catch (e) {
+      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
+
+  if (command === 'kick') {
+    if (!hasPermission(member, command)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    let target = message.mentions.users.first();
+    if (!target) {
+      const userId = args[0];
+      if (userId && /^\d+$/.test(userId)) {
+        target = client.users.cache.get(userId);
+        if (!target) {
+          try { target = await client.users.fetch(userId); } catch (e) {}
+        }
+      }
+    }
+    if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    if (!checkCooldown(member.id, 'kick', member)) {
+      return message.channel.send('⏳ Cooldown 15min.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+    const reason = args.slice(1).join(' ') || 'Aucune raison';
+    try {
+      const targetMember = await message.guild.members.fetch(target.id);
+      await targetMember.kick(reason);
+      try {
+        await target.send(`Vous avez été kick du serveur 🔱 Sysnet pour la raison : ${reason}. Vous pouvez revenir avec ce lien : discord.gg/teadMR4zgG`);
+      } catch (e) {}
+      const embed = new EmbedBuilder()
+        .setColor('#ff9900')
+        .setTitle('👢 Kick')
+        .setDescription(`${target.tag} a été kick par ${member.user.tag}`)
+        .addFields({ name: 'Raison', value: reason })
+        .setTimestamp();
+      await sendLog(message.guild, 'moderation', null, embed);
+      message.channel.send(`✅ ${target.tag} a été kick.`).then(m => setTimeout(() => m.delete(), 5000));
+    } catch (e) {
+      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
+
+  if (command === 'mute') {
+    if (!hasPermission(member, command)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    let target = message.mentions.users.first();
+    if (!target) {
+      const userId = args[0];
+      if (userId && /^\d+$/.test(userId)) {
+        target = client.users.cache.get(userId);
+        if (!target) {
+          try { target = await client.users.fetch(userId); } catch (e) {}
+        }
+      }
+    }
+    if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    if (!checkCooldown(member.id, 'timeout', member)) {
+      return message.channel.send('⏳ Cooldown 10min.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+    const durationStr = args[1];
+    if (!durationStr) return message.channel.send('❌ Durée requise (ex: 10m, 1h).').then(m => setTimeout(() => m.delete(), 10000));
+    const durationMs = parseDuration(durationStr);
+    if (!durationMs) return message.channel.send('❌ Format invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    const reason = args.slice(2).join(' ') || 'Aucune raison';
+    try {
+      const targetMember = await message.guild.members.fetch(target.id);
+      await targetMember.timeout(durationMs, reason);
+      const embed = new EmbedBuilder()
+        .setColor('#ff9900')
+        .setTitle('🔇 Mute')
+        .setDescription(`${target.tag} a été mute par ${member.user.tag} pour ${durationStr}`)
+        .addFields({ name: 'Raison', value: reason })
+        .setTimestamp();
+      await sendLog(message.guild, 'moderation', null, embed);
+      message.channel.send(`✅ ${target.tag} a été mute pour ${durationStr}.`).then(m => setTimeout(() => m.delete(), 5000));
+    } catch (e) {
+      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
+
+  if (command === 'unmute') {
+    if (!hasPermission(member, command)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    let target = message.mentions.users.first();
+    if (!target) {
+      const userId = args[0];
+      if (userId && /^\d+$/.test(userId)) {
+        target = client.users.cache.get(userId);
+        if (!target) {
+          try { target = await client.users.fetch(userId); } catch (e) {}
+        }
+      }
+    }
+    if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    try {
+      const targetMember = await message.guild.members.fetch(target.id);
+      await targetMember.timeout(null);
+      const embed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('🔊 Unmute')
+        .setDescription(`${target.tag} a été unmute par ${member.user.tag}`)
+        .setTimestamp();
+      await sendLog(message.guild, 'moderation', null, embed);
+      message.channel.send(`✅ ${target.tag} a été unmute.`).then(m => setTimeout(() => m.delete(), 5000));
+    } catch (e) {
+      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
+
+  if (command === 'anti-link') {
+    const current = antiLinkEnabled.get(message.guild.id) || false;
+    antiLinkEnabled.set(message.guild.id, !current);
+    const status = !current ? 'activé' : 'désactivé';
+    message.channel.send(`🔗 Anti-link ${status}.`).then(m => setTimeout(() => m.delete(), 5000));
+    const embed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle('🔄 Anti-link modifié')
+      .setDescription(`Par ${member.user.tag} : maintenant ${status}`)
+      .setTimestamp();
+    await sendLog(message.guild, 'systeme', null, embed);
+  }
+
+  if (command === 'lock') {
+    const channels = message.guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
+    let count = 0;
+    for (const [, ch] of channels) {
+      try {
+        await ch.permissionOverwrites.edit(message.guild.id, { SendMessages: false });
+        count++;
+      } catch (e) {}
+    }
+    message.channel.send(`🔒 ${count} salons verrouillés.`).then(m => setTimeout(() => m.delete(), 5000));
+    const embed = new EmbedBuilder()
+      .setColor('#ff0000')
+      .setTitle('🔒 Lock global')
+      .setDescription(`Tous les salons ont été verrouillés par ${member.user.tag}`)
+      .setTimestamp();
+    await sendLog(message.guild, 'systeme', null, embed);
+  }
+
+  if (command === 'unlock') {
+    const channels = message.guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
+    let count = 0;
+    for (const [, ch] of channels) {
+      try {
+        await ch.permissionOverwrites.edit(message.guild.id, { SendMessages: null });
+        count++;
+      } catch (e) {}
+    }
+    message.channel.send(`🔓 ${count} salons déverrouillés.`).then(m => setTimeout(() => m.delete(), 5000));
+    const embed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle('🔓 Unlock global')
+      .setDescription(`Tous les salons ont été déverrouillés par ${member.user.tag}`)
+      .setTimestamp();
+    await sendLog(message.guild, 'systeme', null, embed);
+  }
+
+  if (command === 'clear') {
+    const amount = parseInt(args[0]);
+    if (!amount || amount < 1 || amount > 100) return message.channel.send('❌ Nombre entre 1 et 100.').then(m => setTimeout(() => m.delete(), 10000));
+    try {
+      const messages = await message.channel.bulkDelete(amount, true);
+      const msg = await message.channel.send(`🗑️ ${messages.size} messages supprimés.`);
+      setTimeout(() => msg.delete().catch(() => {}), 5000);
+      const embed = new EmbedBuilder()
+        .setColor('#ff9900')
+        .setTitle('🧹 Clear')
+        .setDescription(`${member.user.tag} a supprimé ${messages.size} messages dans ${message.channel.name}`)
+        .setTimestamp();
+      await sendLog(message.guild, 'messages', null, embed);
+    } catch (e) {
+      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
+
+  if (command === 'clean') {
+    try {
+      let fetched;
+      do {
+        fetched = await message.channel.messages.fetch({ limit: 100 });
+        await message.channel.bulkDelete(fetched, true);
+      } while (fetched.size >= 100);
+      const msg = await message.channel.send('🧹 Salon nettoyé.');
+      setTimeout(() => msg.delete().catch(() => {}), 5000);
+      const embed = new EmbedBuilder()
+        .setColor('#ff9900')
+        .setTitle('🧹 Clean')
+        .setDescription(`${member.user.tag} a nettoyé le salon ${message.channel.name}`)
+        .setTimestamp();
+      await sendLog(message.guild, 'messages', null, embed);
+    } catch (e) {
+      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
+
+  if (command === 'setstatus') {
+    const type = args[0]?.toLowerCase();
+    const text = args.slice(1).join(' ');
+    if (!type || !text) return message.channel.send('❌ Usage: !setstatus <playing|streaming> <texte>').then(m => setTimeout(() => m.delete(), 10000));
+    if (type === 'playing') {
+      client.user.setActivity(text, { type: ActivityType.Playing });
+    } else if (type === 'streaming') {
+      client.user.setActivity(text, { type: ActivityType.Streaming, url: 'https://twitch.tv/sysnet' });
+    } else {
+      return message.channel.send('❌ Type doit être "playing" ou "streaming".').then(m => setTimeout(() => m.delete(), 10000));
+    }
+    message.channel.send(`✅ Statut mis à jour : ${type} ${text}`).then(m => setTimeout(() => m.delete(), 5000));
+  }
+
+  if (command === 'ticket' && args[0] === 'config' && args[1] === 'set') {
+    if (!hasAdminPerm(member)) {
+      return message.channel.send('❌ Commande réservée aux administrateurs.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    const field = args[2];
+    const value = args.slice(3).join(' ');
+    if (!field || !value) return message.channel.send('❌ Usage: !ticket config set <titre|description|image|couleur|footer|options> <valeur>').then(m => setTimeout(() => m.delete(), 10000));
+
+    const config = ticketConfigs.get(message.guild.id) || { ...DEFAULT_TICKET_CONFIG };
+    if (field === 'options') {
+      const opts = value.split(',').map(s => s.trim());
+      if (opts.length !== 3) return message.channel.send('❌ Exactement 3 options séparées par des virgules.').then(m => setTimeout(() => m.delete(), 10000));
+      config.options = opts;
+    } else if (field === 'couleur') {
+      config.color = value;
+    } else if (field === 'image') {
+      config.image = value;
+    } else {
+      config[field] = value;
+    }
+    ticketConfigs.set(message.guild.id, config);
+    message.channel.send(`✅ Champ "${field}" mis à jour.`).then(m => setTimeout(() => m.delete(), 5000));
+    const embed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle('📝 Configuration ticket modifiée')
+      .setDescription(`${member.user.tag} a modifié ${field} : ${value}`)
+      .setTimestamp();
+    await sendLog(message.guild, 'systeme', null, embed);
+  }
+
+  if (command === 'ticket' && args[0] === 'send') {
+    if (!hasAdminPerm(member)) {
+      return message.channel.send('❌ Commande réservée aux administrateurs.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+
+    const config = ticketConfigs.get(message.guild.id) || { ...DEFAULT_TICKET_CONFIG };
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('ticket_menu')
+          .setPlaceholder('Choisissez une option')
+          .addOptions(
+            config.options.map(opt => ({
+              label: opt,
+              value: opt,
+              description: `Ouvrir un ticket pour ${opt}`
+            }))
+          )
+      );
+
+    const embed = new EmbedBuilder()
+      .setColor(config.color)
+      .setTitle(config.title)
+      .setDescription(config.description)
+      .setFooter({ text: config.footer });
+
+    if (config.image) embed.setImage(config.image);
+
+    await message.channel.send({ embeds: [embed], components: [row] });
+    message.channel.send('✅ Message de tickets envoyé !').then(m => setTimeout(() => m.delete(), 5000));
+    await message.delete().catch(() => {});
+
+    const logEmbed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle('🎫 Message de tickets envoyé')
+      .setDescription(`${member.user.tag} a envoyé le message de tickets dans ${message.channel}`)
+      .setTimestamp();
+    await sendLog(message.guild, 'tickets', null, logEmbed);
+  }
+
+  if (command === 'giveaway') {
+    if (args[0] === 'force') {
+      const msgId = args[1];
+      const user = message.mentions.users.first();
+      if (!msgId || !user) return message.channel.send('❌ Usage: !giveaway force <ID_message> <@user>').then(m => setTimeout(() => m.delete(), 10000));
+      const giveawayData = giveaways.get(msgId);
+      if (!giveawayData) return message.channel.send('❌ Giveaway introuvable.').then(m => setTimeout(() => m.delete(), 10000));
+      const channel = await client.channels.fetch(giveawayData.channelId);
+      if (channel) {
+        const embed = new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle('🎉 Gagnant du giveaway !')
+          .setDescription(`Félicitations à ${user} ! Vous avez gagné : **${giveawayData.prize}**`)
+          .setFooter({ text: 'Giveaway forcé par un administrateur' });
+        await channel.send({ embeds: [embed] });
+        const logEmbed = new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle('🎁 Giveaway forcé')
+          .setDescription(`${member.user.tag} a forcé le gagnant : ${user.tag}`)
+          .addFields({ name: 'Message ID', value: msgId })
+          .setTimestamp();
+        await sendLog(message.guild, 'moderation', null, logEmbed);
+      }
+      giveaways.delete(msgId);
+      return message.channel.send('✅ Gagnant annoncé.').then(m => setTimeout(() => m.delete(), 5000));
+    }
+
+    const duration = args[1];
+    const winners = parseInt(args[2]);
+    const title = args.slice(3).join(' ').split('|')[0]?.trim() || 'Giveaway';
+    const description = args.slice(3).join(' ').split('|')[1]?.trim() || 'Bonne chance !';
+    const channel = message.mentions.channels.first();
+    if (!channel || !duration || !winners) return message.channel.send('❌ Usage: !giveaway #salon 10m 3 Titre | Description').then(m => setTimeout(() => m.delete(), 10000));
+    const durationMs = parseDuration(duration);
+    if (!durationMs) return message.channel.send('❌ Durée invalide (ex: 10m, 1h).').then(m => setTimeout(() => m.delete(), 10000));
+    const endTime = Date.now() + durationMs;
+
+    const embed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle(`🎁 ${title}`)
+      .setDescription(description)
+      .addFields(
+        { name: 'Gagnants', value: `${winners}`, inline: true },
+        { name: 'Fin', value: `<t:${Math.floor(endTime/1000)}:R>`, inline: true }
+      )
+      .setFooter({ text: 'Réagissez avec 🎉 pour participer !' });
+
+    const msg = await channel.send({ embeds: [embed] });
+    await msg.react('🎉');
+
+    giveaways.set(msg.id, {
+      endTime,
+      channelId: channel.id,
+      winners,
+      prize: title,
+      host: member.id
+    });
+
+    setTimeout(async () => {
+      const data = giveaways.get(msg.id);
+      if (!data) return;
+      const fetchedMsg = await channel.messages.fetch(msg.id);
+      const reaction = fetchedMsg.reactions.cache.get('🎉');
+      if (!reaction) {
+        const embedFail = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setTitle('❌ Giveaway terminé')
+          .setDescription('Aucun participant, personne ne gagne.');
+        await channel.send({ embeds: [embedFail] });
+        giveaways.delete(msg.id);
+        return;
+      }
+      const users = await reaction.users.fetch();
+      const participants = users.filter(u => !u.bot);
+      if (participants.size === 0) {
+        const embedFail = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setTitle('❌ Giveaway terminé')
+          .setDescription('Aucun participant, personne ne gagne.');
+        await channel.send({ embeds: [embedFail] });
+        giveaways.delete(msg.id);
+        return;
+      }
+      const winner = participants.random(Math.min(data.winners, participants.size));
+      const winnerMentions = winner.map(u => `<@${u.id}>`).join(', ');
+      const embedWin = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('🎉 Giveaway terminé !')
+        .setDescription(`Félicitations à ${winnerMentions} ! Vous gagnez : **${data.prize}**`);
+      await channel.send({ embeds: [embedWin] });
+      giveaways.delete(msg.id);
+    }, durationMs);
+
+    message.channel.send(`✅ Giveaway lancé dans ${channel}.`).then(m => setTimeout(() => m.delete(), 5000));
+    const logEmbed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle('🎁 Giveaway lancé')
+      .setDescription(`${member.user.tag} a lancé un giveaway : ${title}`)
+      .setTimestamp();
+    await sendLog(message.guild, 'moderation', null, logEmbed);
+  }
 });
 
 // ========== INTERACTIONS ==========
@@ -750,132 +1183,211 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-// ========== MODALS ==========
-if (interaction.customId === 'messageModal') {
-  await interaction.deferReply({ ephemeral: true });
-  
-  const salonId = interaction.fields.getTextInputValue('salon')?.trim();
-  let texte = interaction.fields.getTextInputValue('texte');
-  
-  let channel;
-  if (salonId && /^\d+$/.test(salonId)) {
-    channel = interaction.guild.channels.cache.get(salonId);
-    if (!channel) {
-      try {
-        channel = await interaction.guild.channels.fetch(salonId);
-      } catch (e) {
-        console.error('Erreur fetch salon:', e);
+  // ========== MODALS ==========
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'messageModal') {
+      await interaction.deferReply({ ephemeral: true });
+      
+      const salonId = interaction.fields.getTextInputValue('salon')?.trim();
+      let texte = interaction.fields.getTextInputValue('texte');
+      
+      let channel;
+      if (salonId && /^\d+$/.test(salonId)) {
+        channel = interaction.guild.channels.cache.get(salonId);
+        if (!channel) {
+          try {
+            channel = await interaction.guild.channels.fetch(salonId);
+          } catch (e) {
+            console.error('Erreur fetch salon:', e);
+          }
+        }
+      } else {
+        channel = interaction.channel;
       }
+      
+      if (!channel) {
+        return interaction.editReply({ 
+          content: '❌ Salon invalide. Vérifiez l\'ID.', 
+          ephemeral: true 
+        });
+      }
+
+      try {
+        // Vérifier la longueur du message
+        if (texte.length > 2000) {
+          texte = texte.substring(0, 1997) + '...';
+        }
+        
+        await channel.send(texte);
+        await interaction.editReply({ content: `✅ Message envoyé dans ${channel}`, ephemeral: true });
+        
+        const logEmbed = new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle('📝 Message envoyé')
+          .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
+          .addFields({ name: 'Contenu', value: texte.substring(0, 100) + (texte.length > 100 ? '...' : '') })
+          .setTimestamp();
+        await sendLog(interaction.guild, 'messages', null, logEmbed);
+      } catch (error) {
+        console.error('Erreur messageModal:', error);
+        await interaction.editReply({ 
+          content: `❌ Erreur: ${error.message}`, 
+          ephemeral: true 
+        });
+      }
+      return;
     }
-  } else {
-    channel = interaction.channel;
+
+    if (interaction.customId === 'embedModal') {
+      await interaction.deferReply({ ephemeral: true });
+      
+      const salonId = interaction.fields.getTextInputValue('salon')?.trim();
+      const titre = interaction.fields.getTextInputValue('titre') || ' ';
+      let description = interaction.fields.getTextInputValue('description') || ' ';
+      let couleur = interaction.fields.getTextInputValue('couleur')?.trim() || EMBED_COLOR;
+      if (couleur.startsWith('#')) couleur = couleur.slice(1);
+      const image = interaction.fields.getTextInputValue('image')?.trim() || null;
+      const footer = interaction.fields.getTextInputValue('footer')?.trim() || null;
+      
+      let channel;
+      if (salonId && /^\d+$/.test(salonId)) {
+        channel = interaction.guild.channels.cache.get(salonId);
+        if (!channel) {
+          try {
+            channel = await interaction.guild.channels.fetch(salonId);
+          } catch (e) {
+            console.error('Erreur fetch salon:', e);
+          }
+        }
+      } else {
+        channel = interaction.channel;
+      }
+      
+      if (!channel) {
+        return interaction.editReply({ 
+          content: '❌ Salon invalide. Vérifiez l\'ID.', 
+          ephemeral: true 
+        });
+      }
+
+      try {
+        // Limiter la description à 4000 caractères
+        if (description.length > 4000) {
+          description = description.substring(0, 3997) + '...';
+        }
+        
+        const embed = new EmbedBuilder()
+          .setColor(couleur)
+          .setTitle(titre)
+          .setDescription(description.replace(/\/n/g, '\n'));
+        if (image) embed.setImage(image);
+        if (footer) embed.setFooter({ text: footer });
+
+        await channel.send({ embeds: [embed] });
+        await interaction.editReply({ content: `✅ Embed envoyé dans ${channel}`, ephemeral: true });
+
+        const logEmbed = new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle('🎨 Embed envoyé')
+          .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
+          .setTimestamp();
+        await sendLog(interaction.guild, 'messages', null, logEmbed);
+      } catch (error) {
+        console.error('Erreur embedModal:', error);
+        await interaction.editReply({ 
+          content: `❌ Erreur: ${error.message}`, 
+          ephemeral: true 
+        });
+      }
+      return;
+    }
   }
-  
-  if (!channel) {
-    return interaction.editReply({ 
-      content: `❌ Salon invalide. Vérifiez l'ID.`, 
-      ephemeral: true 
-    });
-  }
-
-  try {
-    // Vérifier la longueur réelle du message (en comptant les caractères UTF-8)
-    const byteLength = Buffer.byteLength(texte, 'utf8');
-    console.log(`📝 Longueur du message: ${texte.length} caractères, ${byteLength} octets`);
-    
-    // Si le message dépasse 2000 caractères (ou 2000 octets en UTF-8), on le tronque
-    if (texte.length > 2000 || byteLength > 2000) {
-      // Tronquer à 1995 caractères pour être sûr
-      texte = texte.substring(0, 1995) + '...';
-      await interaction.editReply({ 
-        content: `⚠️ Votre message a été tronqué car il dépassait la limite de 2000 caractères.`, 
-        ephemeral: true 
-      });
-    }
-    
-    await channel.send(texte);
-    await interaction.editReply({ content: `✅ Message envoyé dans ${channel}`, ephemeral: true });
-    
-    const logEmbed = new EmbedBuilder()
-      .setColor(EMBED_COLOR)
-      .setTitle('📝 Message envoyé')
-      .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
-      .addFields({ name: 'Contenu', value: texte.substring(0, 100) + (texte.length > 100 ? '...' : '') })
-      .setTimestamp();
-    await sendLog(interaction.guild, 'messages', null, logEmbed);
-  } catch (error) {
-    console.error('❌ Erreur messageModal:', error);
-    await interaction.editReply({ 
-      content: `❌ Erreur: ${error.message}`, 
-      ephemeral: true 
-    });
-  }
-  return;
-}
-
-  if (interaction.customId === 'embedModal') {
-    await interaction.deferReply({ ephemeral: true });
-    
-    const salonId = interaction.fields.getTextInputValue('salon')?.trim();
-    const titre = interaction.fields.getTextInputValue('titre') || ' ';
-    const description = interaction.fields.getTextInputValue('description') || ' ';
-    let couleur = interaction.fields.getTextInputValue('couleur')?.trim() || EMBED_COLOR;
-    if (couleur.startsWith('#')) couleur = couleur.slice(1);
-    const image = interaction.fields.getTextInputValue('image')?.trim() || null;
-    const footer = interaction.fields.getTextInputValue('footer')?.trim() || null;
-    
-    console.log(`🎨 Embed modal - Salon: "${salonId}", Titre: "${titre}"`);
-    
-    let channel;
-    if (salonId && /^\d+$/.test(salonId)) {
-      channel = interaction.guild.channels.cache.get(salonId);
-      console.log(`🔍 Recherche du salon avec ID: ${salonId}, trouvé: ${!!channel}`);
-    } else {
-      channel = interaction.channel;
-      console.log(`📌 Utilisation du salon actuel: ${channel.name} (${channel.id})`);
-    }
-    
-    if (!channel) {
-      console.log(`❌ Salon non trouvé pour ID: ${salonId}`);
-      return interaction.editReply({ 
-        content: `❌ Salon invalide. Vérifiez l'ID. ID fourni: ${salonId || 'aucun'}`, 
-        ephemeral: true 
-      });
-    }
-
-    try {
-      const embed = new EmbedBuilder()
-        .setColor(couleur)
-        .setTitle(titre)
-        .setDescription(description.replace(/\/n/g, '\n'));
-      if (image) embed.setImage(image);
-      if (footer) embed.setFooter({ text: footer });
-
-      console.log(`📤 Envoi de l'embed dans ${channel.name} (${channel.id})`);
-      await channel.send({ embeds: [embed] });
-      console.log(`✅ Embed envoyé avec succès`);
-      await interaction.editReply({ content: `✅ Embed envoyé dans ${channel}`, ephemeral: true });
-
-      const logEmbed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle('🎨 Embed envoyé')
-        .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
-        .setTimestamp();
-      await sendLog(interaction.guild, 'messages', null, logEmbed);
-    } catch (error) {
-      console.error('❌ Erreur embedModal:', error);
-      await interaction.editReply({ 
-        content: `❌ Erreur lors de l'envoi de l'embed: ${error.message}`, 
-        ephemeral: true 
-      });
-    }
-    return;
-  }
-})
 
   // ========== TICKETS (menu déroulant) ==========
   if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
-    // ... (garde ton code existant pour les tickets)
+    const option = interaction.values[0];
+    const guild = interaction.guild;
+    const member = interaction.member;
+
+    const category = guild.channels.cache.get(TICKET_CATEGORY_ID);
+    if (!category) {
+      return interaction.reply({ content: '❌ Catégorie de tickets introuvable. Contactez un administrateur.', ephemeral: true });
+    }
+
+    const existingTicket = guild.channels.cache.find(
+      ch => ch.type === ChannelType.GuildText &&
+             ch.name === `ticket-${member.user.username.toLowerCase()}` &&
+             ch.parentId === TICKET_CATEGORY_ID
+    );
+    if (existingTicket) {
+      return interaction.reply({ content: `❌ Vous avez déjà un ticket ouvert : ${existingTicket}`, ephemeral: true });
+    }
+
+    try {
+      const ticketChannel = await guild.channels.create({
+        name: `ticket-${member.user.username.toLowerCase()}`,
+        type: ChannelType.GuildText,
+        parent: TICKET_CATEGORY_ID,
+        permissionOverwrites: [
+          {
+            id: guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel]
+          },
+          {
+            id: member.id,
+            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
+          },
+          ...ROLES.fullPerms.map(roleId => ({
+            id: roleId,
+            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
+          })),
+          {
+            id: ROLES.ticket,
+            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
+          }
+        ]
+      });
+
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`ticket_close_${ticketChannel.id}`)
+            .setLabel('🔒 Fermer')
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId(`ticket_transcript_${ticketChannel.id}`)
+            .setLabel('📄 Transcript')
+            .setStyle(ButtonStyle.Secondary)
+        );
+
+      const embed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle(`🎫 Ticket - ${option}`)
+        .setDescription(`Bonjour ${member.user},\nVotre ticket a été ouvert. Un membre du staff va vous prendre en charge.\n\n**Raison :** ${option}`)
+        .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
+
+      await ticketChannel.send({
+        content: `<@${member.id}> ${ROLES.fullPerms.map(id => `<@&${id}>`).join(' ')} <@&${ROLES.ticket}>`,
+        embeds: [embed],
+        components: [row]
+      });
+
+      ticketMessages.set(ticketChannel.id, []);
+
+      const logEmbed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('🎫 Ticket ouvert')
+        .setDescription(`${member.user.tag} a ouvert un ticket : ${option}`)
+        .addFields({ name: 'Salon', value: ticketChannel.name })
+        .setTimestamp();
+      await sendLog(guild, 'tickets', null, logEmbed);
+
+      await interaction.reply({ content: `✅ Ticket ouvert : ${ticketChannel}`, ephemeral: true });
+
+    } catch (e) {
+      console.error(e);
+      await interaction.reply({ content: '❌ Erreur lors de la création du ticket.', ephemeral: true });
+    }
   }
 });
 
