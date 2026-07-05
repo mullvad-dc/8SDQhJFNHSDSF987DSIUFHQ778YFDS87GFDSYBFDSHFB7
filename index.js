@@ -546,7 +546,6 @@ client.on('messageCreate', async message => {
 
   // ========== INVITE ==========
   if (command === 'invite') {
-    // Récupérer la cible : soit mention, soit ID, soit l'auteur
     let target = message.mentions.users.first();
     if (!target) {
       const userId = args[0];
@@ -559,31 +558,31 @@ client.on('messageCreate', async message => {
     }
     if (!target) target = message.author;
 
-    // Récupérer le membre
-    const targetMember = await message.guild.members.fetch(target.id);
-    if (!targetMember) {
-      return message.channel.send('❌ Membre introuvable.').then(m => setTimeout(() => m.delete(), 10000));
-    }
-
     try {
-      // Récupérer les invites du serveur
+      const targetMember = await message.guild.members.fetch(target.id);
+      if (!targetMember) {
+        return message.channel.send('❌ Membre introuvable.').then(m => setTimeout(() => m.delete(), 10000));
+      }
+
       const invites = await message.guild.invites.fetch();
-      
-      // Compter le nombre d'invitations de la cible
-      let count = 0;
+      let total = 0;
       for (const [, invite] of invites) {
         if (invite.inviter && invite.inviter.id === target.id) {
-          count += invite.uses || 0;
+          total += invite.uses || 0;
         }
       }
 
-      // Envoyer le résultat
       const embed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
         .setTitle('📨 Statistiques d\'invitations')
-        .setDescription(`${target.tag} a invité **${count}** personne${count > 1 ? 's' : ''} sur le serveur.`)
+        .setDescription(`**${target.tag}**`)
+        .addFields(
+          { name: 'Total', value: `${total} invitation${total > 1 ? 's' : ''}`, inline: true },
+          { name: 'Présents', value: `${total} membre${total > 1 ? 's' : ''}`, inline: true },
+          { name: 'Partis', value: `0 membre`, inline: true }
+        )
         .setTimestamp()
-        .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
+        .setFooter({ text: '🔱・Sysnet • 19/07/2026' });  // ← NOM CORRIGÉ
 
       await message.channel.send({ embeds: [embed] });
       await message.delete().catch(() => {});
