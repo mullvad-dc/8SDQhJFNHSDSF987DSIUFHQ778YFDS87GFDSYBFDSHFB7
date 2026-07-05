@@ -750,89 +750,115 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // ========== MODALS ==========
-  if (interaction.isModalSubmit()) {
-    if (interaction.customId === 'messageModal') {
-      await interaction.deferReply({ ephemeral: true });
-      
-      const salonId = interaction.fields.getTextInputValue('salon')?.trim();
-      const texte = interaction.fields.getTextInputValue('texte');
-      
-      let channel;
-      if (salonId && /^\d+$/.test(salonId)) {
-        channel = interaction.guild.channels.cache.get(salonId);
-      } else {
-        channel = interaction.channel;
-      }
-      
-      if (!channel) {
-        return interaction.editReply({ content: '❌ Salon invalide. Vérifiez l\'ID.', ephemeral: true });
-      }
-
-      try {
-        await channel.send(texte);
-        await interaction.editReply({ content: `✅ Message envoyé dans ${channel}`, ephemeral: true });
-        
-        const logEmbed = new EmbedBuilder()
-          .setColor(EMBED_COLOR)
-          .setTitle('📝 Message envoyé')
-          .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
-          .addFields({ name: 'Contenu', value: texte.substring(0, 100) + (texte.length > 100 ? '...' : '') })
-          .setTimestamp();
-        await sendLog(interaction.guild, 'messages', null, logEmbed);
-      } catch (error) {
-        console.error('Erreur messageModal:', error);
-        await interaction.editReply({ content: '❌ Erreur lors de l\'envoi du message.', ephemeral: true });
-      }
-      return;
+// ========== MODALS ==========
+if (interaction.isModalSubmit()) {
+  if (interaction.customId === 'messageModal') {
+    await interaction.deferReply({ ephemeral: true });
+    
+    const salonId = interaction.fields.getTextInputValue('salon')?.trim();
+    const texte = interaction.fields.getTextInputValue('texte');
+    
+    console.log(`📝 Message modal - Salon ID: "${salonId}", Texte: "${texte}"`);
+    
+    let channel;
+    if (salonId && /^\d+$/.test(salonId)) {
+      channel = interaction.guild.channels.cache.get(salonId);
+      console.log(`🔍 Recherche du salon avec ID: ${salonId}, trouvé: ${!!channel}`);
+    } else {
+      channel = interaction.channel;
+      console.log(`📌 Utilisation du salon actuel: ${channel.name} (${channel.id})`);
+    }
+    
+    if (!channel) {
+      console.log(`❌ Salon non trouvé pour ID: ${salonId}`);
+      return interaction.editReply({ 
+        content: `❌ Salon invalide. Vérifiez l'ID. ID fourni: ${salonId || 'aucun'}`, 
+        ephemeral: true 
+      });
     }
 
-    if (interaction.customId === 'embedModal') {
-      await interaction.deferReply({ ephemeral: true });
+    try {
+      console.log(`📤 Envoi du message dans ${channel.name} (${channel.id})`);
+      await channel.send(texte);
+      console.log(`✅ Message envoyé avec succès`);
+      await interaction.editReply({ content: `✅ Message envoyé dans ${channel}`, ephemeral: true });
       
-      const salonId = interaction.fields.getTextInputValue('salon')?.trim();
-      const titre = interaction.fields.getTextInputValue('titre') || ' ';
-      const description = interaction.fields.getTextInputValue('description') || ' ';
-      let couleur = interaction.fields.getTextInputValue('couleur')?.trim() || EMBED_COLOR;
-      if (couleur.startsWith('#')) couleur = couleur.slice(1);
-      const image = interaction.fields.getTextInputValue('image')?.trim() || null;
-      const footer = interaction.fields.getTextInputValue('footer')?.trim() || null;
-      
-      let channel;
-      if (salonId && /^\d+$/.test(salonId)) {
-        channel = interaction.guild.channels.cache.get(salonId);
-      } else {
-        channel = interaction.channel;
-      }
-      
-      if (!channel) {
-        return interaction.editReply({ content: '❌ Salon invalide. Vérifiez l\'ID.', ephemeral: true });
-      }
-
-      try {
-        const embed = new EmbedBuilder()
-          .setColor(couleur)
-          .setTitle(titre)
-          .setDescription(description.replace(/\/n/g, '\n'));
-        if (image) embed.setImage(image);
-        if (footer) embed.setFooter({ text: footer });
-
-        await channel.send({ embeds: [embed] });
-        await interaction.editReply({ content: `✅ Embed envoyé dans ${channel}`, ephemeral: true });
-
-        const logEmbed = new EmbedBuilder()
-          .setColor(EMBED_COLOR)
-          .setTitle('🎨 Embed envoyé')
-          .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
-          .setTimestamp();
-        await sendLog(interaction.guild, 'messages', null, logEmbed);
-      } catch (error) {
-        console.error('Erreur embedModal:', error);
-        await interaction.editReply({ content: '❌ Erreur lors de l\'envoi de l\'embed.', ephemeral: true });
-      }
-      return;
+      const logEmbed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('📝 Message envoyé')
+        .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
+        .addFields({ name: 'Contenu', value: texte.substring(0, 100) + (texte.length > 100 ? '...' : '') })
+        .setTimestamp();
+      await sendLog(interaction.guild, 'messages', null, logEmbed);
+    } catch (error) {
+      console.error('❌ Erreur messageModal:', error);
+      await interaction.editReply({ 
+        content: `❌ Erreur lors de l'envoi du message: ${error.message}`, 
+        ephemeral: true 
+      });
     }
+    return;
   }
+
+  if (interaction.customId === 'embedModal') {
+    await interaction.deferReply({ ephemeral: true });
+    
+    const salonId = interaction.fields.getTextInputValue('salon')?.trim();
+    const titre = interaction.fields.getTextInputValue('titre') || ' ';
+    const description = interaction.fields.getTextInputValue('description') || ' ';
+    let couleur = interaction.fields.getTextInputValue('couleur')?.trim() || EMBED_COLOR;
+    if (couleur.startsWith('#')) couleur = couleur.slice(1);
+    const image = interaction.fields.getTextInputValue('image')?.trim() || null;
+    const footer = interaction.fields.getTextInputValue('footer')?.trim() || null;
+    
+    console.log(`🎨 Embed modal - Salon: "${salonId}", Titre: "${titre}"`);
+    
+    let channel;
+    if (salonId && /^\d+$/.test(salonId)) {
+      channel = interaction.guild.channels.cache.get(salonId);
+      console.log(`🔍 Recherche du salon avec ID: ${salonId}, trouvé: ${!!channel}`);
+    } else {
+      channel = interaction.channel;
+      console.log(`📌 Utilisation du salon actuel: ${channel.name} (${channel.id})`);
+    }
+    
+    if (!channel) {
+      console.log(`❌ Salon non trouvé pour ID: ${salonId}`);
+      return interaction.editReply({ 
+        content: `❌ Salon invalide. Vérifiez l'ID. ID fourni: ${salonId || 'aucun'}`, 
+        ephemeral: true 
+      });
+    }
+
+    try {
+      const embed = new EmbedBuilder()
+        .setColor(couleur)
+        .setTitle(titre)
+        .setDescription(description.replace(/\/n/g, '\n'));
+      if (image) embed.setImage(image);
+      if (footer) embed.setFooter({ text: footer });
+
+      console.log(`📤 Envoi de l'embed dans ${channel.name} (${channel.id})`);
+      await channel.send({ embeds: [embed] });
+      console.log(`✅ Embed envoyé avec succès`);
+      await interaction.editReply({ content: `✅ Embed envoyé dans ${channel}`, ephemeral: true });
+
+      const logEmbed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('🎨 Embed envoyé')
+        .setDescription(`Par ${interaction.user.tag}\nSalon : ${channel.name}`)
+        .setTimestamp();
+      await sendLog(interaction.guild, 'messages', null, logEmbed);
+    } catch (error) {
+      console.error('❌ Erreur embedModal:', error);
+      await interaction.editReply({ 
+        content: `❌ Erreur lors de l'envoi de l'embed: ${error.message}`, 
+        ephemeral: true 
+      });
+    }
+    return;
+  }
+}
 
   // ========== TICKETS (menu déroulant) ==========
   if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
