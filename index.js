@@ -166,6 +166,7 @@ function hasTicketAccess(member) {
 let joinCount = 0;
 let joinTimer = null;
 
+// ========== ÉVÉNEMENTS ==========
 client.on('guildMemberAdd', async member => {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
@@ -536,6 +537,7 @@ client.on('messageCreate', async message => {
     return;
   }
 
+  // ========== BAN ==========
   if (command === 'bl') {
     if (!hasPermission(member, command)) {
       return message.channel.send('❌ Vous n\'avez pas la permission.')
@@ -557,20 +559,33 @@ client.on('messageCreate', async message => {
     }
     const reason = args.slice(1).join(' ') || 'Aucune raison';
     try {
+      let mpEnvoye = false;
+      try {
+        await target.send(`🔱 **Vous avez été banni du serveur Sysnet**\n\n**Raison :** ${reason}\n\nSi vous pensez que c'est une erreur, vous pouvez contacter un administrateur.`);
+        mpEnvoye = true;
+      } catch (e) {
+        console.log(`❌ MP échoué pour ${target.tag}: ${e.message}`);
+      }
+      
       await message.guild.members.ban(target, { reason });
+      
       const embed = new EmbedBuilder()
         .setColor('#ff0000')
         .setTitle('🔨 Ban')
         .setDescription(`${target.tag} a été banni par ${member.user.tag}`)
-        .addFields({ name: 'Raison', value: reason })
+        .addFields(
+          { name: 'Raison', value: reason },
+          { name: 'MP envoyé', value: mpEnvoye ? '✅ Oui' : '❌ Non' }
+        )
         .setTimestamp();
       await sendLog(message.guild, 'moderation', null, embed);
       message.channel.send(`✅ ${target.tag} a été banni.`).then(m => setTimeout(() => m.delete(), 5000));
     } catch (e) {
-      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+      message.channel.send(`❌ Erreur: ${e.message}`).then(m => setTimeout(() => m.delete(), 10000));
     }
   }
 
+  // ========== UNBAN ==========
   if (command === 'unbl') {
     if (!hasPermission(member, command)) {
       return message.channel.send('❌ Vous n\'avez pas la permission.')
@@ -592,58 +607,153 @@ client.on('messageCreate', async message => {
     }
   }
 
+  // ========== KICK ==========
   if (command === 'kick') {
-  if (!hasPermission(member, command)) {
-    return message.channel.send('❌ Vous n\'avez pas la permission.')
-      .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
-  }
-  let target = message.mentions.users.first();
-  if (!target) {
-    const userId = args[0];
-    if (userId && /^\d+$/.test(userId)) {
-      target = client.users.cache.get(userId);
-      if (!target) {
-        try { target = await client.users.fetch(userId); } catch (e) {}
+    if (!hasPermission(member, command)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    let target = message.mentions.users.first();
+    if (!target) {
+      const userId = args[0];
+      if (userId && /^\d+$/.test(userId)) {
+        target = client.users.cache.get(userId);
+        if (!target) {
+          try { target = await client.users.fetch(userId); } catch (e) {}
+        }
       }
     }
-  }
-  if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
-  if (!checkCooldown(member.id, 'kick', member)) {
-    return message.channel.send('⏳ Cooldown 15min.').then(m => setTimeout(() => m.delete(), 10000));
-  }
-  const reason = args.slice(1).join(' ') || 'Aucune raison';
-  try {
-    // Récupérer le membre AVANT de kick
-    const targetMember = await message.guild.members.fetch(target.id);
-    
-    // ========== ENVOI DU MP (AVANT LE KICK) ==========
-    let mpEnvoye = false;
-    try {
-      await target.send(`🔱 **Vous avez été kick du serveur Sysnet**\n\n**Raison :** ${reason}\n\nVous pouvez revenir quand vous voulez avec ce lien :\nhttps://discord.gg/teadMR4zgG`);
-      mpEnvoye = true;
-      console.log(`✅ MP envoyé à ${target.tag}`);
-    } catch (e) {
-      console.log(`❌ Impossible d'envoyer un MP à ${target.tag}: ${e.message}`);
+    if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    if (!checkCooldown(member.id, 'kick', member)) {
+      return message.channel.send('⏳ Cooldown 15min.').then(m => setTimeout(() => m.delete(), 10000));
     }
-    
-    // Kick après le MP
-    await targetMember.kick(reason);
-    
-    const embed = new EmbedBuilder()
-      .setColor('#ff9900')
-      .setTitle('👢 Kick')
-      .setDescription(`${target.tag} a été kick par ${member.user.tag}`)
-      .addFields(
-        { name: 'Raison', value: reason },
-        { name: 'MP envoyé', value: mpEnvoye ? '✅ Oui' : '❌ Non (MP fermé ou bot bloqué)' }
-      )
-      .setTimestamp();
-    await sendLog(message.guild, 'moderation', null, embed);
-    message.channel.send(`✅ ${target.tag} a été kick.`).then(m => setTimeout(() => m.delete(), 5000));
-  } catch (e) {
-    message.channel.send(`❌ Erreur: ${e.message}`).then(m => setTimeout(() => m.delete(), 10000));
+    const reason = args.slice(1).join(' ') || 'Aucune raison';
+    try {
+      const targetMember = await message.guild.members.fetch(target.id);
+      
+      let mpEnvoye = false;
+      try {
+        await target.send(`🔱 **Vous avez été kick du serveur Sysnet**\n\n**Raison :** ${reason}\n\nVous pouvez revenir quand vous voulez avec ce lien :\nhttps://discord.gg/teadMR4zgG`);
+        mpEnvoye = true;
+      } catch (e) {
+        console.log(`❌ MP échoué pour ${target.tag}: ${e.message}`);
+      }
+      
+      await targetMember.kick(reason);
+      
+      const embed = new EmbedBuilder()
+        .setColor('#ff9900')
+        .setTitle('👢 Kick')
+        .setDescription(`${target.tag} a été kick par ${member.user.tag}`)
+        .addFields(
+          { name: 'Raison', value: reason },
+          { name: 'MP envoyé', value: mpEnvoye ? '✅ Oui' : '❌ Non' }
+        )
+        .setTimestamp();
+      await sendLog(message.guild, 'moderation', null, embed);
+      message.channel.send(`✅ ${target.tag} a été kick.`).then(m => setTimeout(() => m.delete(), 5000));
+    } catch (e) {
+      message.channel.send(`❌ Erreur: ${e.message}`).then(m => setTimeout(() => m.delete(), 10000));
+    }
   }
-}
+
+  // ========== MUTE ==========
+  if (command === 'mute') {
+    if (!hasPermission(member, command)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    let target = message.mentions.users.first();
+    if (!target) {
+      const userId = args[0];
+      if (userId && /^\d+$/.test(userId)) {
+        target = client.users.cache.get(userId);
+        if (!target) {
+          try { target = await client.users.fetch(userId); } catch (e) {}
+        }
+      }
+    }
+    if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    if (!checkCooldown(member.id, 'timeout', member)) {
+      return message.channel.send('⏳ Cooldown 10min.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+    const durationStr = args[1];
+    if (!durationStr) return message.channel.send('❌ Durée requise (ex: 10m, 1h).').then(m => setTimeout(() => m.delete(), 10000));
+    const durationMs = parseDuration(durationStr);
+    if (!durationMs) return message.channel.send('❌ Format invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    const reason = args.slice(2).join(' ') || 'Aucune raison';
+    try {
+      const targetMember = await message.guild.members.fetch(target.id);
+      
+      let mpEnvoye = false;
+      try {
+        await target.send(`🔇 **Vous avez été mute sur le serveur Sysnet**\n\n**Durée :** ${durationStr}\n**Raison :** ${reason}\n\nVous pourrez parler à nouveau après la fin du mute.`);
+        mpEnvoye = true;
+      } catch (e) {
+        console.log(`❌ MP échoué pour ${target.tag}: ${e.message}`);
+      }
+      
+      await targetMember.timeout(durationMs, reason);
+      
+      const embed = new EmbedBuilder()
+        .setColor('#ff9900')
+        .setTitle('🔇 Mute')
+        .setDescription(`${target.tag} a été mute par ${member.user.tag} pour ${durationStr}`)
+        .addFields(
+          { name: 'Raison', value: reason },
+          { name: 'MP envoyé', value: mpEnvoye ? '✅ Oui' : '❌ Non' }
+        )
+        .setTimestamp();
+      await sendLog(message.guild, 'moderation', null, embed);
+      message.channel.send(`✅ ${target.tag} a été mute pour ${durationStr}.`).then(m => setTimeout(() => m.delete(), 5000));
+    } catch (e) {
+      message.channel.send(`❌ Erreur: ${e.message}`).then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
+
+  // ========== UNMUTE ==========
+  if (command === 'unmute') {
+    if (!hasPermission(member, command)) {
+      return message.channel.send('❌ Vous n\'avez pas la permission.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+    }
+    let target = message.mentions.users.first();
+    if (!target) {
+      const userId = args[0];
+      if (userId && /^\d+$/.test(userId)) {
+        target = client.users.cache.get(userId);
+        if (!target) {
+          try { target = await client.users.fetch(userId); } catch (e) {}
+        }
+      }
+    }
+    if (!target) return message.channel.send('❌ Utilisateur invalide.').then(m => setTimeout(() => m.delete(), 10000));
+    try {
+      const targetMember = await message.guild.members.fetch(target.id);
+      await targetMember.timeout(null);
+      
+      let mpEnvoye = false;
+      try {
+        await target.send(`🔊 **Votre mute sur le serveur Sysnet a été retiré**\n\nVous pouvez à nouveau parler dans le serveur.`);
+        mpEnvoye = true;
+      } catch (e) {
+        console.log(`❌ MP échoué pour ${target.tag}: ${e.message}`);
+      }
+      
+      const embed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle('🔊 Unmute')
+        .setDescription(`${target.tag} a été unmute par ${member.user.tag}`)
+        .addFields(
+          { name: 'MP envoyé', value: mpEnvoye ? '✅ Oui' : '❌ Non' }
+        )
+        .setTimestamp();
+      await sendLog(message.guild, 'moderation', null, embed);
+      message.channel.send(`✅ ${target.tag} a été unmute.`).then(m => setTimeout(() => m.delete(), 5000));
+    } catch (e) {
+      message.channel.send('❌ Erreur.').then(m => setTimeout(() => m.delete(), 10000));
+    }
+  }
 
   if (command === 'anti-link') {
     const current = antiLinkEnabled.get(message.guild.id) || false;
@@ -1156,7 +1266,6 @@ client.on('interactionCreate', async interaction => {
       }
 
       try {
-        // Vérifier la longueur du message
         if (texte.length > 2000) {
           texte = texte.substring(0, 1997) + '...';
         }
@@ -1214,7 +1323,6 @@ client.on('interactionCreate', async interaction => {
       }
 
       try {
-        // Limiter la description à 4000 caractères
         if (description.length > 4000) {
           description = description.substring(0, 3997) + '...';
         }
@@ -1434,6 +1542,7 @@ client.once('ready', async () => {
   }
 });
 
+// ========== SERVEUR HTTP POUR RENDER ==========
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
