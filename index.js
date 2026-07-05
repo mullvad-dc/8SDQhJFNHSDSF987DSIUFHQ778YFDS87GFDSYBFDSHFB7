@@ -547,8 +547,8 @@ client.on('messageCreate', async message => {
     
     const channel = message.channel;
     
-    if (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildVoice) {
-      return message.channel.send('❌ Cette commande ne peut être utilisée que dans un salon texte ou vocal.')
+    if (channel.type !== ChannelType.GuildText) {
+      return message.channel.send('❌ Cette commande ne peut être utilisée que dans un salon texte.')
         .then(m => setTimeout(() => m.delete(), 10000));
     }
     
@@ -562,13 +562,13 @@ client.on('messageCreate', async message => {
       
       const newChannel = await message.guild.channels.create({
         name: channel.name,
-        type: channel.type,
+        type: ChannelType.GuildText,
         parent: channel.parentId,
-        permissionOverwrites: permissionOverwrites,
         topic: channel.topic || null,
         nsfw: channel.nsfw || false,
         rateLimitPerUser: channel.rateLimitPerUser || 0,
-        position: channel.position
+        position: channel.position,
+        permissionOverwrites: permissionOverwrites
       });
       
       await channel.delete(`Renew par ${member.user.tag}`);
