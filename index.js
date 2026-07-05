@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits, EmbedBuilder, Collection, PermissionsBitField, ActivityType, ChannelType, AuditLogEvent, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const dotenv = require('dotenv');
+const openManager = require('./open.js');
 dotenv.config();
 
 const client = new Client({
@@ -1530,7 +1531,12 @@ client.once('ready', async () => {
   client.user.setActivity("j'protege tout le monde", { type: ActivityType.Playing });
 
   client.inviteCache = new Map();
+  
   for (const guild of client.guilds.cache.values()) {
+    // === Configuration des salons @everyone ===
+    await openManager.setupEveryoneChannels(guild);
+    
+    // === Initialisation du cache d'invites ===
     try {
       const invites = await guild.invites.fetch();
       const cache = {};
@@ -1539,6 +1545,23 @@ client.once('ready', async () => {
       }
       client.inviteCache.set(guild.id, cache);
     } catch (e) { /* ignore */ }
+    
+    // === Programmer l'ouverture des catégories ===
+    openManager.scheduleOpening(guild, (g, result) => {
+      // Callback pour envoyer les logs
+      const { EmbedBuilder } = require('discord.js');
+      const embed = new EmbedBuilder()
+        .setColor('#f1c40f')
+        .setTitle('🔓 Ouverture des catégories')
+        .setDescription(`Les catégories suivantes ont été ouvertes à @everyone :\n${result.opened.map(c => `• ${c}`).join('\n')}`)
+        .setTimestamp();
+      
+      // Récupérer le salon de logs système
+      const logsChannel = guild.channels.cache.get('1523020509166436475');
+      if (logsChannel) {
+        logsChannel.send({ embeds: [embed] });
+      }
+    });
   }
 });
 
