@@ -13,27 +13,17 @@ const EVERYONE_CHANNELS = [
   '1522766536086130788'
 ];
 
-// ========== CONFIGURATION DE TEST (ACTIVE) ==========
-// ⚠️ Pour l'instant, seule cette catégorie s'ouvrira le 05/07/2026 à 23h
+// ========== CONFIGURATION RÉELLE (ACTIVE) ==========
+// Catégories à ouvrir le 19/07/2026 à 20h (Paris)
 const OPEN_CATEGORIES = [
-  '1523429979315245167'   // 🧪 Catégorie de test (SEULEMENT celle-ci pour l'instant)
+  '1522761111420666096',
+  '1522762054660915260',
+  '1522762306461630494',
+  '1522762568547045508',
+  '1522768228848369804',
+  '1522762856372895764',
+  '1522764524476960868'
 ];
-
-// ========== CONFIGURATION RÉELLE (DÉSACTIVÉE pour l'instant) ==========
-// ⚠️ Quand vous voudrez ouvrir toutes les catégories le 19/07/2026 :
-// 1. Commentez la configuration de test (ci-dessus)
-// 2. Décommentez la configuration réelle (ci-dessous)
-// 3. Changez la date dans scheduleOpening (voir ligne ~85)
-//
-// const OPEN_CATEGORIES = [
-//   '1522761111420666096',
-//   '1522762054660915260',
-//   '1522762306461630494',
-//   '1522762568547045508',
-//   '1522768228848369804',
-//   '1522762856372895764',
-//   '1522764524476960868'
-// ];
 
 // ========== FONCTIONS ==========
 
@@ -125,9 +115,8 @@ function getDelayUntil(targetDate) {
  * Programme l'ouverture des catégories
  */
 function scheduleOpening(guild, sendLog) {
-  // ⚠️ DATE DE TEST : 05/07/2026 à 23h (Paris) = 21h UTC
-  // Quand vous passerez en production, changez pour : 19/07/2026 à 20h
-  const targetDate = new Date(Date.UTC(2026, 6, 5, 21, 0, 0));
+  // 📅 19 juillet 2026 à 20h (Paris) = 18h UTC
+  const targetDate = new Date(Date.UTC(2026, 6, 19, 18, 0, 0));
   const delay = getDelayUntil(targetDate);
   
   if (delay <= 0) {
@@ -144,13 +133,13 @@ function scheduleOpening(guild, sendLog) {
   const hours = Math.floor((delay % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((delay % (1000 * 60 * 60)) / (1000 * 60));
   
-  console.log(`⏰ [TEST] Ouverture programmée dans ${days}j ${hours}h ${minutes}min (${new Date(targetDate).toLocaleString('fr-FR')})`);
-  console.log(`📌 [TEST] Catégorie à ouvrir : ${OPEN_CATEGORIES.join(', ')}`);
+  console.log(`⏰ Ouverture programmée dans ${days}j ${hours}h ${minutes}min (${new Date(targetDate).toLocaleString('fr-FR')})`);
+  console.log(`📌 Catégories à ouvrir : ${OPEN_CATEGORIES.length} catégories`);
   console.log(`📌 Les 3 salons @everyone sont déjà ouverts et ne seront PAS supprimés.`);
   
   return new Promise((resolve) => {
     setTimeout(async () => {
-      console.log(`🔓 [TEST] Déclenchement de l'ouverture...`);
+      console.log(`🔓 Déclenchement de l'ouverture...`);
       const result = await openCategories(guild);
       if (result.opened.length > 0 && sendLog) {
         sendLog(guild, result);
