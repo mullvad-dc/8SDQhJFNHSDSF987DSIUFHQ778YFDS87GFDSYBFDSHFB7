@@ -1521,46 +1521,6 @@ if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') 
   }
 }
 
-    ticketMessages.set(ticketChannel.id, []);
-
-    const logEmbed = new EmbedBuilder()
-      .setColor(EMBED_COLOR)
-      .setTitle('🎫 Ticket ouvert')
-      .setDescription(`${member.user.tag} a ouvert un ticket : ${option}`)
-      .addFields(
-        { name: 'Salon', value: ticketChannel.name },
-        { name: 'Raison', value: option }
-      )
-      .setTimestamp();
-    await sendLog(guild, 'tickets', null, logEmbed);
-
-    await interaction.reply({ content: `✅ Ticket ouvert : ${ticketChannel}`, ephemeral: true });
-
-  } catch (e) {
-    console.error(e);
-    await interaction.reply({ content: '❌ Erreur lors de la création du ticket.', ephemeral: true });
-  }
-}
-
-      ticketMessages.set(ticketChannel.id, []);
-
-      const logEmbed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle('🎫 Ticket ouvert')
-        .setDescription(`${member.user.tag} a ouvert un ticket : ${option}`)
-        .addFields({ name: 'Salon', value: ticketChannel.name })
-        .setTimestamp();
-      await sendLog(guild, 'tickets', null, logEmbed);
-
-      await interaction.reply({ content: `✅ Ticket ouvert : ${ticketChannel}`, ephemeral: true });
-
-    } catch (e) {
-      console.error(e);
-      await interaction.reply({ content: '❌ Erreur lors de la création du ticket.', ephemeral: true });
-    }
-  }
-});
-
 // ========== GÉNÉRATION DE TRANSCRIPT ==========
 async function generateTranscript(channel) {
   const messages = ticketMessages.get(channel.id) || [];
