@@ -871,7 +871,7 @@ if (interaction.customId === 'messageModal') {
     }
     return;
   }
-}
+})
 
   // ========== TICKETS (menu déroulant) ==========
   if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
