@@ -77,7 +77,7 @@ const DEFAULT_TICKET_CONFIG = {
   description: 'Ouvrez le menu déroulant ci-dessous pour ouvrir un ticket',
   image: null,
   color: EMBED_COLOR,
-  footer: '🔱 Sysnet',
+  footer: '🔱・Sysnet',
   options: ['👑 Rankup', '❓ Question', '🧶 Autre...']
 };
 
@@ -487,6 +487,7 @@ client.on('messageCreate', async message => {
 \`!clean\` - Supprime tous les messages
 \`!setstatus <playing|streaming> <texte>\` - Change le statut
 \`!renew\` - Copie et remplace le salon actuel
+\`!invite [@user]\` - Voir les invitations d'un membre
 
 **🎫 TICKETS :**
 \`!ticket config set <champ> <valeur>\` - Configurer les tickets
@@ -499,7 +500,7 @@ client.on('messageCreate', async message => {
 \`!message\` - Ouvre un formulaire pour envoyer un message
 \`!embed\` - Ouvre un formulaire pour envoyer un embed
       `)
-      .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
+      .setFooter({ text: '🔱・Sysnet • 19/07/2026' });
     return message.channel.send({ embeds: [embed] });
   }
 
@@ -523,7 +524,7 @@ client.on('messageCreate', async message => {
       content: '📝 Cliquez sur le bouton ci-dessous pour ouvrir le formulaire.',
       components: [row]
     });
-    await message.delete().catch(() => {});
+    // Ne pas supprimer le message de la commande
     return;
   }
 
@@ -540,7 +541,7 @@ client.on('messageCreate', async message => {
       content: '🎨 Cliquez sur le bouton ci-dessous pour ouvrir le formulaire.',
       components: [row]
     });
-    await message.delete().catch(() => {});
+    // Ne pas supprimer le message de la commande
     return;
   }
 
@@ -582,10 +583,10 @@ client.on('messageCreate', async message => {
           { name: 'Partis', value: `0 membre`, inline: true }
         )
         .setTimestamp()
-        .setFooter({ text: '🔱・Sysnet • 19/07/2026' });  // ← NOM CORRIGÉ
+        .setFooter({ text: '🔱・Sysnet • 19/07/2026' });
 
       await message.channel.send({ embeds: [embed] });
-      await message.delete().catch(() => {});
+      // Ne pas supprimer le message de la commande
       
     } catch (error) {
       console.error('Erreur invite:', error);
@@ -594,7 +595,7 @@ client.on('messageCreate', async message => {
     }
     return;
   }
-  
+
   // ========== RENEW ==========
   if (command === 'renew') {
     if (!hasRenewPerm(member)) {
@@ -674,7 +675,7 @@ client.on('messageCreate', async message => {
     try {
       let mpEnvoye = false;
       try {
-        await target.send(`🔱 **Vous avez été banni du serveur Sysnet**\n\n**Raison :** ${reason}\n\nSi vous pensez que c'est une erreur, vous pouvez contacter un administrateur.`);
+        await target.send(`🔱 **Vous avez été banni du serveur 🔱・Sysnet**\n\n**Raison :** ${reason}\n\nSi vous pensez que c'est une erreur, vous pouvez contacter un administrateur.`);
         mpEnvoye = true;
       } catch (e) {
         console.log(`❌ MP échoué pour ${target.tag}: ${e.message}`);
@@ -746,7 +747,7 @@ client.on('messageCreate', async message => {
       
       let mpEnvoye = false;
       try {
-        await target.send(`🔱 **Vous avez été kick du serveur Sysnet**\n\n**Raison :** ${reason}\n\nVous pouvez revenir quand vous voulez avec ce lien :\nhttps://discord.gg/teadMR4zgG`);
+        await target.send(`🔱 **Vous avez été kick du serveur 🔱・Sysnet**\n\n**Raison :** ${reason}\n\nVous pouvez revenir quand vous voulez avec ce lien :\nhttps://discord.gg/teadMR4zgG`);
         mpEnvoye = true;
       } catch (e) {
         console.log(`❌ MP échoué pour ${target.tag}: ${e.message}`);
@@ -800,7 +801,7 @@ client.on('messageCreate', async message => {
       
       let mpEnvoye = false;
       try {
-        await target.send(`🔇 **Vous avez été mute sur le serveur Sysnet**\n\n**Durée :** ${durationStr}\n**Raison :** ${reason}\n\nVous pourrez parler à nouveau après la fin du mute.`);
+        await target.send(`🔇 **Vous avez été mute sur le serveur 🔱・Sysnet**\n\n**Durée :** ${durationStr}\n**Raison :** ${reason}\n\nVous pourrez parler à nouveau après la fin du mute.`);
         mpEnvoye = true;
       } catch (e) {
         console.log(`❌ MP échoué pour ${target.tag}: ${e.message}`);
@@ -847,7 +848,7 @@ client.on('messageCreate', async message => {
       
       let mpEnvoye = false;
       try {
-        await target.send(`🔊 **Votre mute sur le serveur Sysnet a été retiré**\n\nVous pouvez à nouveau parler dans le serveur.`);
+        await target.send(`🔊 **Votre mute sur le serveur 🔱・Sysnet a été retiré**\n\nVous pouvez à nouveau parler dans le serveur.`);
         mpEnvoye = true;
       } catch (e) {
         console.log(`❌ MP échoué pour ${target.tag}: ${e.message}`);
@@ -1032,7 +1033,7 @@ client.on('messageCreate', async message => {
 
     await message.channel.send({ embeds: [embed], components: [row] });
     message.channel.send('✅ Message de tickets envoyé !').then(m => setTimeout(() => m.delete(), 5000));
-    await message.delete().catch(() => {});
+    // Ne pas supprimer le message de la commande
 
     const logEmbed = new EmbedBuilder()
       .setColor(EMBED_COLOR)
@@ -1536,7 +1537,7 @@ client.on('interactionCreate', async interaction => {
         .setColor(EMBED_COLOR)
         .setTitle(`🎫 Ticket - ${option}`)
         .setDescription(`Bonjour ${member.user},\nVotre ticket a été ouvert. Un membre du staff va vous prendre en charge.\n\n**Raison :** ${option}`)
-        .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
+        .setFooter({ text: '🔱・Sysnet • 19/07/2026' });
 
       await ticketChannel.send({
         content: `<@${member.id}> ${ROLES.fullPerms.map(id => `<@&${id}>`).join(' ')} <@&${ROLES.ticket}>`,
@@ -1635,7 +1636,7 @@ async function generateTranscript(channel) {
   }
 
   html += `
-  <div class="footer">🔱 Sysnet • ${new Date().toLocaleString('fr-FR')}</div>
+  <div class="footer">🔱・Sysnet • ${new Date().toLocaleString('fr-FR')}</div>
 </body>
 </html>
   `;
