@@ -1422,74 +1422,125 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // ========== TICKETS (menu déroulant) ==========
-  if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
-    const option = interaction.values[0];
-    const guild = interaction.guild;
-    const member = interaction.member;
+// ========== TICKETS (menu déroulant) ==========
+if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
+  const option = interaction.values[0];
+  const guild = interaction.guild;
+  const member = interaction.member;
 
-    const category = guild.channels.cache.get(TICKET_CATEGORY_ID);
-    if (!category) {
-      return interaction.reply({ content: '❌ Catégorie de tickets introuvable. Contactez un administrateur.', ephemeral: true });
-    }
+  const category = guild.channels.cache.get(TICKET_CATEGORY_ID);
+  if (!category) {
+    return interaction.reply({ content: '❌ Catégorie de tickets introuvable. Contactez un administrateur.', ephemeral: true });
+  }
 
-    const existingTicket = guild.channels.cache.find(
-      ch => ch.type === ChannelType.GuildText &&
-             ch.name === `ticket-${member.user.username.toLowerCase()}` &&
-             ch.parentId === TICKET_CATEGORY_ID
-    );
-    if (existingTicket) {
-      return interaction.reply({ content: `❌ Vous avez déjà un ticket ouvert : ${existingTicket}`, ephemeral: true });
-    }
+  // ========== DÉTERMINER LE PRÉFIXE ==========
+  let prefix = 'ticket';
+  if (option.toLowerCase().includes('rankup')) prefix = 'rankup';
+  else if (option.toLowerCase().includes('question')) prefix = 'question';
+  else if (option.toLowerCase().includes('autre')) prefix = 'other';
+  else prefix = option.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    try {
-      const ticketChannel = await guild.channels.create({
-        name: `ticket-${member.user.username.toLowerCase()}`,
-        type: ChannelType.GuildText,
-        parent: TICKET_CATEGORY_ID,
-        permissionOverwrites: [
-          {
-            id: guild.id,
-            deny: [PermissionsBitField.Flags.ViewChannel]
-          },
-          {
-            id: member.id,
-            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
-          },
-          ...ROLES.fullPerms.map(roleId => ({
-            id: roleId,
-            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
-          })),
-          {
-            id: ROLES.ticket,
-            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
-          }
-        ]
-      });
+  const ticketName = `${prefix}-${member.user.username.toLowerCase()}`;
 
-      const row = new ActionRowBuilder()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId(`ticket_close_${ticketChannel.id}`)
-            .setLabel('🔒 Fermer')
-            .setStyle(ButtonStyle.Danger),
-          new ButtonBuilder()
-            .setCustomId(`ticket_transcript_${ticketChannel.id}`)
-            .setLabel('📄 Transcript')
-            .setStyle(ButtonStyle.Secondary)
-        );
+  const existingTicket = guild.channels.cache.find(
+    ch => ch.type === ChannelType.GuildText &&
+           ch.name === ticketName &&
+           ch.parentId === TICKET_CATEGORY_ID
+  );
+  if (existingTicket) {
+    return interaction.reply({ content: `❌ Vous avez déjà un ticket ouvert : ${existingTicket}`, ephemeral: true });
+  }
 
-      const embed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle(`🎫 Ticket - ${option}`)
-        .setDescription(`Bonjour ${member.user},\nVotre ticket a été ouvert. Un membre du staff va vous prendre en charge.\n\n**Raison :** ${option}`)
-        .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
+  try {
+    const ticketChannel = await guild.channels.create({
+      name: ticketName,
+      type: ChannelType.GuildText,
+      parent: TICKET_CATEGORY_ID,
+      permissionOverwrites: [
+        {
+          id: guild.id,
+          deny: [PermissionsBitField.Flags.ViewChannel]
+        },
+        {
+          id: member.id,
+          allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
+        },
+        ...ROLES.fullPerms.map(roleId => ({
+          id: roleId,
+          allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
+        })),
+        {
+          id: ROLES.ticket,
+          allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory]
+        }
+      ]
+    });
 
-      await ticketChannel.send({
-        content: `<@${member.id}> ${ROLES.fullPerms.map(id => `<@&${id}>`).join(' ')} <@&${ROLES.ticket}>`,
-        embeds: [embed],
-        components: [row]
-      });
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`ticket_close_${ticketChannel.id}`)
+          .setLabel('🔒 Fermer')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(`ticket_transcript_${ticketChannel.id}`)
+          .setLabel('📄 Transcript')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    const embed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle(`🎫 Ticket - ${option}`)
+      .setDescription(`Bonjour ${member.user},\nVotre ticket a été ouvert. Un membre du staff va vous prendre en charge.\n\n**Raison :** ${option}`)
+      .setFooter({ text: '🔱 Sysnet • 19/07/2026' });
+
+    await ticketChannel.send({
+      content: `<@${member.id}> ${ROLES.fullPerms.map(id => `<@&${id}>`).join(' ')} <@&${ROLES.ticket}>`,
+      embeds: [embed],
+      components: [row]
+    });
+
+    ticketMessages.set(ticketChannel.id, []);
+
+    const logEmbed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle('🎫 Ticket ouvert')
+      .setDescription(`${member.user.tag} a ouvert un ticket : ${option}`)
+      .addFields(
+        { name: 'Salon', value: ticketChannel.name },
+        { name: 'Raison', value: option }
+      )
+      .setTimestamp();
+    await sendLog(guild, 'tickets', null, logEmbed);
+
+    await interaction.reply({ content: `✅ Ticket ouvert : ${ticketChannel}`, ephemeral: true });
+
+  } catch (e) {
+    console.error(e);
+    await interaction.reply({ content: '❌ Erreur lors de la création du ticket.', ephemeral: true });
+  }
+}
+
+    ticketMessages.set(ticketChannel.id, []);
+
+    const logEmbed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setTitle('🎫 Ticket ouvert')
+      .setDescription(`${member.user.tag} a ouvert un ticket : ${option}`)
+      .addFields(
+        { name: 'Salon', value: ticketChannel.name },
+        { name: 'Raison', value: option }
+      )
+      .setTimestamp();
+    await sendLog(guild, 'tickets', null, logEmbed);
+
+    await interaction.reply({ content: `✅ Ticket ouvert : ${ticketChannel}`, ephemeral: true });
+
+  } catch (e) {
+    console.error(e);
+    await interaction.reply({ content: '❌ Erreur lors de la création du ticket.', ephemeral: true });
+  }
+}
 
       ticketMessages.set(ticketChannel.id, []);
 
