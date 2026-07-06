@@ -260,7 +260,7 @@ client.on('guildMemberAdd', async member => {
   if (channel) {
     const count = member.guild.memberCount;
     const inviterTag = inviter ? `<@${inviter.id}>` : 'inconnu';
-    await channel.send(`${member.user} a rejoint, il a été invité par ${inviterTag}. Nous sommes maintenant **${count}** dans le serveur !`);
+    await channel.send(`${member.user} vient de rejoindre le serveur ! Nous sommes maintenant **${count}** dans le serveur !`);
   }
 
   // ========== PING D'ARRIVÉE (2 secondes après) ==========
