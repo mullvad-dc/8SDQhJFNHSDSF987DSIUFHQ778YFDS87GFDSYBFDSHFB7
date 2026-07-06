@@ -58,6 +58,9 @@ const STATUT_CHANNEL_ID = '1522762774676115687';
 const ROLE_STATUT_ID = '1522755616958054430';
 const TICKET_CATEGORY_ID = '1522768228848369804';
 
+// Salon d'arrivée pour le ping
+const ARRIVEE_SALON_ID = '1522766499142565898';
+
 const COOLDOWNS = {
   bl: 15 * 60 * 1000,
   timeout: 10 * 60 * 1000,
@@ -183,6 +186,7 @@ let joinCount = 0;
 let joinTimer = null;
 
 client.on('guildMemberAdd', async member => {
+  // ========== LOG JOIN ==========
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
     .setTitle('📥 Arrivée')
@@ -190,6 +194,7 @@ client.on('guildMemberAdd', async member => {
     .setTimestamp();
   await sendLog(member.guild, 'joinleave', null, embed);
 
+  // ========== DÉTECTION RAID ==========
   joinCount++;
   if (!joinTimer) {
     joinTimer = setTimeout(async () => {
@@ -206,6 +211,7 @@ client.on('guildMemberAdd', async member => {
     }, 10000);
   }
 
+  // ========== ANTI-BOT ==========
   if (member.user.bot) {
     const audit = await member.guild.fetchAuditLogs({ type: AuditLogEvent.BotAdd, limit: 1 });
     const entry = audit.entries.first();
@@ -232,6 +238,7 @@ client.on('guildMemberAdd', async member => {
     }
   }
 
+  // ========== SYSTÈME D'INVITATIONS ==========
   const invites = await member.guild.invites.fetch();
   if (!client.inviteCache) client.inviteCache = new Map();
   const cached = client.inviteCache.get(member.guild.id) || {};
@@ -255,6 +262,26 @@ client.on('guildMemberAdd', async member => {
     const inviterTag = inviter ? `<@${inviter.id}>` : 'inconnu';
     await channel.send(`${member.user} a rejoint, il a été invité par ${inviterTag}. Nous sommes maintenant **${count}** dans le serveur !`);
   }
+
+  // ========== PING D'ARRIVÉE (2 secondes après) ==========
+  setTimeout(async () => {
+    try {
+      const salon = member.guild.channels.cache.get(ARRIVEE_SALON_ID);
+      if (!salon) {
+        console.log(`❌ Salon d'arrivée ${ARRIVEE_SALON_ID} non trouvé`);
+        return;
+      }
+      
+      const msg = await salon.send(`📥 Bienvenue à ${member.user} ! (${member.user.tag})`);
+      
+      setTimeout(() => {
+        msg.delete().catch(() => {});
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Erreur ping arrivée:', error);
+    }
+  }, 2000);
 });
 
 client.on('channelCreate', async channel => {
