@@ -272,7 +272,7 @@ client.on('guildMemberAdd', async member => {
         return;
       }
       
-      const msg = await salon.send(`📥 Bienvenue à ${member.user} ! (${member.user.tag})`);
+      const msg = await salon.send(`${member.user}  (${member.user.tag})`);
       
       setTimeout(() => {
         msg.delete().catch(() => {});
