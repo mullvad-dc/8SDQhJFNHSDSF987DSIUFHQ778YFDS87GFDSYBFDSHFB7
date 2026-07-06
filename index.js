@@ -119,8 +119,17 @@ function hasRenewPerm(member) {
 }
 
 function canBypassCooldown(member) {
-  return member.permissions.has(PermissionsBitField.Flags.Administrator) ||
-         member.roles.cache.some(r => ROLES.fullPerms.includes(r.id));
+  // Seuls les Admins Discord bypassent les cooldowns
+  if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
+  
+  // Liste des rôles qui bypassent les cooldowns (exclure 1522757708946604083)
+  const bypassRoles = [
+    '1522757429501362307',  // Créateur Sysnet
+    '1522757907005968405'   // PA
+  ];
+  // 1522757708946604083 (Co-Créateur) N'EST PAS dans la liste
+  
+  return member.roles.cache.some(r => bypassRoles.includes(r.id));
 }
 
 function hasAdminPerm(member) {
